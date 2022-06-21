@@ -1,5 +1,5 @@
-# Graph-based Assembler for Plant Mito-genomes (GAPM)
+# Graph-based Sequence Assembly Toolkit (GAST)
 
-An effective pipeline to assembly plant mitochondrial genomes into simple and accurate graphs, consisting of many graph-based tools for processing the genome assembly results and high throughout sequencing data.
+An effective toolkit to assembly plant organelle genomes into simple and accurate master graphs, consisting of many graph-based tools for processing the genome assembly results and high throughout sequencing data.
 
-GAPM is under testing now and will be released later.
+GAST is under testing now and will be released later.
