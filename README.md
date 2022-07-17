@@ -10,9 +10,9 @@ Just download the file and uncompress it to where you want to install in. The ex
 
 This toolkit required several necessary tools which should be installed in the `PATH`:
 
-    blastn
-    minimap2
-    mafft 
+- [**blastn**](https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
+- [**minimap2**](https://github.com/lh3/minimap2)
+- [**mafft**](https://mafft.cbrc.jp/alignment/software/) 
 
 ## Usage
 
