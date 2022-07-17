@@ -2,9 +2,21 @@
 
 An effective toolkit to assembly plant organelle genomes into simple and accurate master graphs, consisting of many graph-based tools for processing the genome assembly results and high throughout sequencing data.
 
-## SYNOPSIS
+## Installation
 
-    gsat <command> [options]
+Just download the file and uncompress it to where you want to install in. The executable file `gsat` could be found in the `bin` directory.
+
+## Requirement
+
+This toolkit required several necessary tools which should be installed in the `PATH`:
+
+    blastn
+    minimap2
+    mafft 
+
+## Usage
+
+    ./bin/gsat <command> [options]
 
     Commands:
     -- Functions
@@ -25,19 +37,11 @@ An effective toolkit to assembly plant organelle genomes into simple and accurat
        man                  print a complete help document
        version              print the version information
 
-## VERSION
+## Version
 
 GSAT version 1.00 (2022-07-17)
 
-## REQUIREMENTS
-
-This toolkit required several necessary tools which could be found in the PATH variable:
-
-    blastn
-    minimap2
-    mafft 
-
-## AUTHOR
+## Author
 
   Wenchuang He
   nongke2@163.com
