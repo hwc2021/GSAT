@@ -1,0 +1,100 @@
+#!/usr/bin/env perl
+
+=pod
+
+=head1 NAME
+
+GSAT - Graph-based Sequence Assembly Toolkit
+
+=head1 SYNOPSIS
+
+    gsat <command> [options]
+
+    Commands:
+    -- Functions
+       graphFilt            filter the assembly graph with different params
+       graphMap             conduct graph mapping to detect mapped paths in a graph for query sequence
+       graphCorr            correct the sequences in a graph by using long reads. HIFI reads is recommanded.
+       graphSimplify        simplify the graph based on supported mapped paths of long reads.
+       rmOverlap            remove the overlaping regions from a graph
+
+    -- Pipelines (incoming)
+       graphShort           generate a Organelle Graph from a raw graph of de novo assembly
+       graphLong            generate a Mitochondrial Rough Graph from a OG
+       graphSimplification  generate a Mitochondrial Rough Master Graph from a MRG
+       graphCorrection      generate a Mitochondrial Master Graph from a MRMG
+
+    -- Information
+       help                 print a brief help information
+       man                  print a complete help document
+       version              print the version information
+
+=head1 VERSION
+
+GAST version 1.00 (2022-07-17)
+
+=head1 DESCRIPTION
+
+=head1 REQUIREMENTS
+
+This toolkit required several necessary tools which could be found in the PATH variable:
+
+    blastn
+    minimap2
+    mafft 
+
+=head1 AUTHOR
+
+  Wenchuang He
+  nongke2@163.com
+  AGIS, CAAS
+
+=head1 LICENSE
+
+The MIT License
+
+Copyright (c) 2022-     AGIS, CAAS
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+=cut
+
+use strict;
+use warnings;
+use FindBin;
+use File::Basename;
+use Getopt::Long;
+use Pod::Usage;
+use lib "$FindBin::RealBin";
+use lib "$FindBin::RealBin/../lib";
+use lib "$FindBin::RealBin/lib";
+use GSAT;
+
+pod2usage("$0: No params given.")  if (@ARGV == 0);
+my @params=@ARGV;
+my $process=shift @params;
+pod2usage() if $process =~ /^help$/;
+pod2usage(-verbose => 2) if $process =~ /^man$/;
+pod2usage(-verbose => 99,-sections => [ qw(VERSION) ] ) if $process eq 'version';
+die "Error: Unspecified command!\n" if $process !~ /^graphFilt$|^graphMap$|^graphCorr$|^graphSimplify$|^graphShort$|^graphLong$|^graphSimplification$|^graphCorrection$|^version$|^help$|^man$|/;
+
+GSAT::gsatRun($process,\@params);
+__END__
