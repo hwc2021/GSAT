@@ -6,6 +6,16 @@ An effective graph-based toolkit to assembly plant organelle genomes into simple
 
 Just download the file and uncompress it to where you want to install in. The executable file `gsat` could be found in the `bin` directory.
 
+    cd GSAT/bin
+    chmod a+x gsat
+    
+Edit the `.bashrc` file to add this directory to your environment variable `PATH`. For example, in a typical Linux system:
+
+    vi ~/.bashrc
+    #add the folloing line to the end of .bashrc file
+    #export PATH=$PATH:/your/path/GSAT/bin
+    source ~/.bashrc
+
 ## Requirement
 
 This toolkit required several necessary tools which should be installed in the `PATH`:
@@ -16,7 +26,7 @@ This toolkit required several necessary tools which should be installed in the `
 
 ## Usage
 
-    ./bin/gsat <command> [options]
+    gsat <command> [options]
 
     Commands:
     -- Functions
@@ -36,6 +46,8 @@ This toolkit required several necessary tools which should be installed in the `
        help                 print a brief help information
        man                  print a complete help document
        version              print the version information
+       
+Detailed usage information for each command could be found by using the command without any option.
 
 ## Version
 
