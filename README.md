@@ -12,7 +12,7 @@ Just download the file and uncompress it to where you want to install in. The ex
 Edit the `.bashrc` file to add this directory to your environment variable `PATH`. For example, in a typical Linux system:
 
     vi ~/.bashrc
-    #add the folloing line to the end of .bashrc file
+    #add the next line to the end of .bashrc file ("#" should be removed when paste the next line to the file)
     #export PATH=$PATH:/your/path/GSAT/bin
     source ~/.bashrc
 
