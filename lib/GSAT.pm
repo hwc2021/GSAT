@@ -1,11 +1,5 @@
 package GSAT;
 
-#参考circos布局
-
-#功能分成graphfilt,graphmap,graphcorr,graphsimply等选项，不可联用；pipe分成graph-short，graph-long，graph-sim，graph-corr等选项即可，可联用。功能与pipeline不可同时设定
-#支持参数放进config文件里；功能中config文件为可选项；pipeline要求必须有config文件。
-#统一放入文件夹中。此外，不同pipeline放入不同子文件夹。
-
 =pod
 
 =head1 NAME
@@ -135,6 +129,39 @@ GSAT version 1.00 (2022-07-14)
 
     Note: the * denoted a required option.
 
+=head1 graphShort
+
+    Usage:   gsat graphShort [options]
+
+    -conf [str]        the config file.*
+    -cpu [int]         number of cpu cores which could be used for the pipeline.\n";
+
+    Note: the * denoted a required option.
+
+=head1 graphLong
+
+    Usage:   gsat graphLong [options]
+
+    -conf [str]        the config file.*
+
+    Note: the * denoted a required option.
+
+=head1 graphSimplification
+
+    Usage:   gsat graphSimplification [options]
+
+    -conf [str]        the config file.*
+
+    Note: the * denoted a required option.
+
+=head1 graphCorrection
+
+    Usage:   gsat graphCorrection [options]
+
+    -conf [str]        the config file.*
+
+    Note: the * denoted a required option.
+
 =cut
 
 use strict;
@@ -209,15 +236,19 @@ sub gsatRun{
       rmOverlap::m0proc($gfa,$outP);#done
    }
    elsif($proc =~ /^graphShort$/i){
+      pod2usage(-input => pod_where({-inc => 1}, "GSAT"),-verbose => 99,-sections => [ qw(graphShort) ])if @{$opt} == 0;
       pipeShort($opt);
    }
-   elsif($proc =~ /^graphLhort$/i){
+   elsif($proc =~ /^graphLong$/i){
+      pod2usage(-input => pod_where({-inc => 1}, "GSAT"),-verbose => 99,-sections => [ qw(graphLong) ])if @{$opt} == 0;
       pipeLong($opt);
    }
    elsif($proc =~ /^graphSimplification$/i){
+      pod2usage(-input => pod_where({-inc => 1}, "GSAT"),-verbose => 99,-sections => [ qw(graphSimplification) ])if @{$opt} == 0;
       pipeSim($opt);
    }
    elsif($proc =~ /^graphCorrection$/i){
+      pod2usage(-input => pod_where({-inc => 1}, "GSAT"),-verbose => 99,-sections => [ qw(graphCorrection) ])if @{$opt} == 0;
       pipeCorr($opt);
    }
    else{
@@ -226,17 +257,153 @@ sub gsatRun{
 }
 
 sub pipeShort{
-   ;
+   my @opts2_1=('r1','r2','maxReadLen','minDep1','minDep2');
+   my @opts2_2=('rmSep');
+   my @x1=('');
+   my @x2=('');
+   my $opts3='out';
+   my $spades='spades.py';
+   my $cpu=2;
+   my $confile;
+   GetOptionsFromArray($_[0],
+        'conf=s'      => \$confile,
+        'cpu=i'          => \$cpu,
+      );
+   my ($c1,$c2,$outp)=readConf($confile,\@opts2_1,\@opts2_2,\@x1,\@x2,$opts3);
+   newDir($outp); 
+   my @short_opt=split(/ /,$c1);
+   my ($r1,$r2,$max_rlen,$minD1,$minD2,$rmSep,$ks);
+   GetOptionsFromArray(\@short_opt,
+        'r1=s'      => \$r1,
+        'r2=s'      => \$r2,
+        'maxReadLen=i'   => \$max_rlen,
+        'minDep1=i'      => \$minD1,
+        'minDep2=i'      => \$minD2,
+        'rmSep'          => \$rmSep,
+      );
+   my $in_gfa=$outp.'/spades/assembly_graph_with_scaffolds.gfa';
+   print "Read1: $r1 ; Read2: $r2 ";
+   warn "Warning: Please note that the SPAdes is not recommended for large sequencing dataset > 5 gb. You can use a subset instead.\n" if (stat($r1))[7] > 5000000 &&  (stat($r2))[7] > 5000000;
+   if($max_rlen >92 && $max_rlen <= 102){
+      $ks="-k 21,33,55,71,91";
+   }
+   elsif($max_rlen > 147 && $max_rlen <= 152){
+      $ks="-k 33,55,77,99,121";
+   }
+   elsif($max_rlen > 100 && $max_rlen <= 150){
+      $ks="-k 21,33,55,71,99";
+   }
+   else{
+      $ks="";
+   }
+   print `$spades --careful -1 $r1 -2 $r2 $ks --cov-cutoff auto -t $cpu -o $outp/spades`;
+   #eval {`$spades --careful -1 $r1 -2 $r2 $ks --cov-cutoff auto -t $cpu -o $outp/spades`;};
+   die "$@ \n" if $@;
+   my $rsstat= defined($rmSep) ? 'T':'F';
+   graphFilterNuc::filterNuc($in_gfa,$minD1,$minD2,$rsstat,$outp.'/og');
 }
 
+my @opts1_1=('readFile','gfaFile','minRead','maxOffset1','maxOffset2','maxCombDis','maxEdgeSize1','maxEdgeSize2','maxBounderRatio','maxIdenGap','minIden','minCovofRead','minCovbyPath','strictBub','minimap2');
+my @opts1_2=('depth');
 sub pipeLong{
-   ;
+   my @opts2_1=('gfaFile','minPathNo','minEnd');
+   my @opts2_2=('rmBubbPt');
+   my $opts3='out';
+   my $confile;
+   GetOptionsFromArray($_[0],
+        'conf=s'      => \$confile,
+      );
+   my ($c1,$c2,$outp)=readConf($confile,\@opts1_1,\@opts1_2,\@opts2_1,\@opts2_2,$opts3);
+   newDir($outp); 
+   my @gmap_opt=((split(/ /,$c1)),'-a','-'.$opts3,$outp.'/gmap');
+   my @gfp_opt=split(/ /,$c2);
+   graphMapper::gmap(\@gmap_opt);
+   my $pfile=$outp.'/gmap.mapping.paths';
+   my ($gfa,$minPath,$minEnd,$rmPt);
+   GetOptionsFromArray(\@gfp_opt,
+        'gfaFile=s'    => \$gfa,
+        'minPathNo=i'  => \$minPath,
+        'minEnd=i'     => \$minEnd,
+        'rmBubbPt'     => \$rmPt,
+      );
+   my $rstat= defined($rmPt) ? 'T':'F';
+   graphFilterPt::filterPt($gfa,$pfile,$minPath,$minEnd,$rstat,'T',$outp.'/mrg');
 }
 
 sub pipeCorr{
-   ;
+   my @opts2_1=('readFile','gfaFile','minReadProp');
+   my @opts2_2=('undef');
+   my $opts3='out';
+   my $confile;
+   GetOptionsFromArray($_[0],
+        'conf=s'      => \$confile,
+      );
+   my ($c1,$c2,$outp)=readConf($confile,\@opts1_1,\@opts1_2,\@opts2_1,\@opts2_2,$opts3);
+   newDir($outp); 
+   my @gmap_opt=((split(/ /,$c1)),'-a','-'.$opts3,$outp.'/gmap');
+   graphMapper::gmap(\@gmap_opt);
+   my $pfile=$outp.'/gmap.mapping.paths';
+   my @gc_opt=((split(/ /,$c2)),'-'.$opts3,$outp.'/mmg','-pathFile',$pfile);
+   graphCorrector::grapCorr(\@gc_opt);
 }
 
 sub pipeSim{
-   ;
+   my @opts2_1=('gfaFile','minPathNo','minEnd');
+   my @opts2_2=('undef');
+   my $opts3='out';
+   my $confile;
+   GetOptionsFromArray($_[0],
+        'conf=s'      => \$confile,
+      );
+   my ($c1,$c2,$outp)=readConf($confile,\@opts1_1,\@opts1_2,\@opts2_1,\@opts2_2,$opts3);
+   newDir($outp); 
+   my @gmap_opt=((split(/ /,$c1)),'-a','-'.$opts3,$outp.'/gmap');
+   graphMapper::gmap(\@gmap_opt);
+   my $pfile=$outp.'/gmap.mapping.paths';
+   my @gs_opt=split(/ /,$c2);
+   my ($gfa,$minPath,$minEnd);
+      GetOptionsFromArray(\@gs_opt,
+        'gfaFile=s'      => \$gfa,
+        'minPathNo=i'    => \$minPath,
+        'minEnd=i'       => \$minEnd,
+      );
+   graphSimply::filterGraph($gfa,$pfile,$minPath,$minEnd,$outp.'/mrmg');
+}
+
+sub readConf{
+   my ($inf,$opt1x1,$opt1x2,$opt2x1,$opt2x2,$out)=@_;
+   open(CFILE,$inf) || die "Error: Cannot open the config file! \n";
+   my @opt1;
+   my @opt2;
+   foreach (<CFILE>){
+      chomp;
+      next if /^#|^\s|^$/;
+      my ($n,$v)=split(/\s+/);
+      push @opt1,$n;
+      push @opt2,$v;
+   }
+   close CFILE;
+
+   my $used1='^'.join('$|^',@{$opt1x1}).'$';
+   my $used2='^'.join('$|^',@{$opt2x1}).'$';
+   my @opt_a1=map {'-'.$opt1[$_].' '.$opt2[$_]} (grep {$opt1[$_]=~/$used1/} 0..$#opt1);
+   my @opt_a2=map {'-'.$opt1[$_].' '.$opt2[$_]} (grep {$opt1[$_]=~/$used2/} 0..$#opt1);
+   my ($optsv3)=map {$opt2[$_]} (grep {$opt1[$_]=~/$out/} 0..$#opt1);
+   $optsv3 = 'gsat' if length($optsv3) < 1;
+   my $usedu1='^'.join('$|^',@{$opt1x2}).'$';
+   my $usedu2='^'.join('$|^',@{$opt2x2}).'$';
+   my @opt_b1=map {'-'.$opt1[$_]} (grep {$opt1[$_]=~/$usedu1/ && $opt2[$_] eq 'on'} 0..$#opt1);
+   my @opt_b2=map {'-'.$opt1[$_]} (grep {$opt1[$_]=~/$usedu2/ && $opt2[$_] eq 'on'} 0..$#opt1);
+
+   return(join(' ',(@opt_a1,@opt_b1)),join(' ',(@opt_a2,@opt_b2)),$optsv3);
+}
+
+sub newDir{
+   my $outp=shift @_;
+   if(-d $outp){
+      die"Error: the specified target dir is existed: $outp \n";
+   }
+   else{
+      mkdir($outp) || die "Error: Cannot create the target dir: $outp \n";
+   }
 }

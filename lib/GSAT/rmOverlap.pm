@@ -17,7 +17,6 @@ sub m0proc{
 	chomp(my @gfa_content=<gfafile>); 
 	my ($gfaS,undef,$gfaL)=graphIO::readGfa(\@gfa_content,"SL");
 	
-	#建立每个ctg的前后连接列表；按照从长到短的顺序，依次对两侧连接数量进行判断：如果link两侧的ctg都是唯一的，对短ctg进行m0操作，并对两个ctg进行状态标记；如果某侧具有两个以上link，则对其他两个ctg进行m0操作，并对全部ctg进行标记。同时，如果任何一方已有标记，则按照标记执行，未标记的一方妥协。
 	my %mlen;
 	my @ctgs=sort keys %{$gfaS};
 	foreach my $line(@{$gfaL}){
@@ -72,9 +71,6 @@ sub m0proc{
 		else{
 			die"Error: Format error in the GFA file!\n";
 		}
-		#print "ctg: ".$line->[0]."\n";
-		#print " left :".join(",",@{$links{$line->[0]}{'left'}})."\n" if exists $links{$line->[0]}{'left'};
-		#print " right: ".join(",",@{$links{$line->[0]}{'right'}})."\n" if exists $links{$line->[0]}{'right'};#test
 	}
 	
 	my @ctgs_sort=sort {${$gfaS}{$b}{'len'} <=> ${$gfaS}{$a}{'len'}} @ctgs;

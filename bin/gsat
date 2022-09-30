@@ -18,7 +18,7 @@ GSAT - Graph-based Sequence Assembly Toolkit
        graphSimplify        simplify the graph based on supported mapped paths of long reads.
        rmOverlap            remove the overlaping regions from a graph
 
-    -- Pipelines (incoming)
+    -- Pipelines
        graphShort           generate a Organelle Graph from a raw graph of de novo assembly
        graphLong            generate a Mitochondrial Rough Graph from a OG
        graphSimplification  generate a Mitochondrial Rough Master Graph from a MRG
@@ -31,11 +31,9 @@ GSAT - Graph-based Sequence Assembly Toolkit
 
 =head1 VERSION
 
-GAST version 1.00 (2022-07-17)
+GAST version 1.10 (2022-09-30)
 
 =head1 DESCRIPTION
-
-An effective graph-based toolkit to assembly plant organelle genomes into simple and accurate master graphs, consisting of many graph-based tools for processing the genome assembly results and high throughout sequencing data.
 
 =head1 REQUIREMENTS
 
@@ -43,7 +41,8 @@ This toolkit required several necessary tools which could be found in the PATH v
 
     blastn
     minimap2
-    mafft 
+    mafft
+    SPAdes(only used in graphShort pipeline)
 
 =head1 AUTHOR
 

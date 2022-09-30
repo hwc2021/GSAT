@@ -25,6 +25,11 @@
 #updated in version 1.523: added a new option strictBubble to avoid worng bubbles
 #updated in version 1.524: added a method to remove a ctg-read alignment that was mapped in the inter-region of another alignment
 #updated in verison 1.525: fixed a big bug in the readGfa module
+#updated at 28th Jul: fixed a bug related to gfa_S
+#updated at 3rd July: fixed a bug for minIden
+#updated at 21th Sep: fixed a bug that can cause a wrong identification of the format of alignment files
+#updated at 30th Sep: fixed a bug for option strictBub
+
 package graphMapper;
 use strict;
 #use warnings;
@@ -43,8 +48,6 @@ use GSAT::graphIO;
 #use Getopt::Long::Configure qw(bundling no_ignore_case);
 #use Smart::Comments;
 
-#更改mapping策略，minimap2仅用于>500bp的ctg
-#因此重整mapping代码架构
 my @align_info;
 my @sub_ori;
 my ($no_Qid,$no_Qlen,$no_Qs,$no_Qe,$no_Sid,$no_Slen,$no_Ss,$no_Se,$no_ori,$no_alp,$no_ai)=(0..10);
@@ -141,7 +144,7 @@ sub readmap{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽�
       $temp_ori=$line_info[$subject_ori_no];
     }
   
-    next if ($temp_ali_iden < $min_iden) || ($temp_ali_len < $min_ali_len);
+    next if ($temp_ali_iden < 100*$min_iden) || ($temp_ali_len < $min_ali_len);
     my $temp_ali_lengthprop=($line_info[$subject_end_no]-$line_info[$subject_start_no]+1)/$line_info[$subject_len_no];
 
     my @old_qc;
@@ -291,7 +294,7 @@ sub gmap{
     open(gfaFile,"$gfa_file") || die "Error: Cannot open the file: $gfa_file \n";
   chomp(my @gfa_content=<gfaFile>);
   
-  my ($gfa_S,undef,$gfa_L)=graphIO::readGfa(\@gfa_content,'SL');
+  ($gfa_S,undef,$gfa_L)=graphIO::readGfa(\@gfa_content,'SL');
   my $gfa_lnk_k=${$gfa_L}[0]->[-1];
   
   my $offset_center;
@@ -386,17 +389,20 @@ sub gmap{
     }
   }
   else{
+    my $afile;
     if(defined($paf_file)){
       open (align_file,$paf_file) || die "Error: Cannot open the file: $paf_file ! \n";
+      $afile='paf';
     }
     elsif(defined($b7_file)){
       open (align_file,$b7_file) || die "Error: Cannot open the file: $b7_file ! \n";
+      $afile='b7';
     }
     else{
       die"Error: No valid .paf or .b7 file was found!\n";
     }
     chomp(my @mapped=<align_file>);
-    readmap('b7',\@mapped);
+    readmap($afile,\@mapped);
     splice @mapped;
     close align_file;
   }
@@ -679,7 +685,7 @@ sub gmap{
   
           my @passed_nos=map {$now_the_nos[$_]} (grep {$the_nos_stat[$_] == 1} 0..$#now_the_nos);
   
-          if($strict_bubble =~ /^yes$|^Yes$|^Y$|^y$/){
+          if($strict_bubble =~ /^yes$|^Yes$|^Y$|^y$|^on$/i){
             my $max_end=max(map {$sorted_merged[$_]->[$no_Qe]} @passed_nos);
             @passed_nos=grep {$sorted_merged[$_]->[$no_Qe] == $max_end} @passed_nos;
           }

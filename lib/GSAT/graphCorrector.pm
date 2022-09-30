@@ -1,5 +1,6 @@
 #updated in version 1.03: removed the gaps remained in the corrected gfa file.
 #updated in version 1.031: fixed a big bug in the readGfa module
+#updated at Aug 19,2022: fixed a bug related to GraphIO module.
 package graphCorrector;
 
 use strict;
@@ -162,7 +163,7 @@ sub grapCorr{
       my $mafft_command="mafft --maxiterate 1000 --globalpair --quiet ${out_prefix}.temp.fas";
       my @mafft_seq=`$mafft_command`;
       die "Fatal: the mafft software is not well installed or the input files are not matched each other. \n" if @mafft_seq < 4;
-      my (undef,$ali_seq)=graphIO::readFas(@mafft_seq);
+      my (undef,$ali_seq)=graphIO::readFas(\@mafft_seq);
       my $ali_c_seq=uc($ali_seq->[0]);
       my $ali_r_seq=uc($ali_seq->[1]);
       $c_seq=uc($c_seq);

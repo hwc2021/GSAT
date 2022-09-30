@@ -6,7 +6,7 @@ use List::MoreUtils qw(any uniq);
 use List::Util 'max';
 use List::Util 'min';
 
-sub readFas{#为提高运算效率，使用引用传递数组/也可能完全用不到这个模块
+sub readFas{
   my $fas=shift @_;
   my $count=-1;
   my @fas_name;
@@ -24,7 +24,7 @@ sub readFas{#为提高运算效率，使用引用传递数组/也可能完全用
   return (\@fas_name,\@fas_seq);
 }
 
-sub readGfa{#为提高运算效率，使用引用传递数组
+sub readGfa{
   my $gfa=shift @_;
   my $get=shift @_;#SPL or S or SL, etc.
   my %S_info;#name-seq/depth;

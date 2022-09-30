@@ -1,4 +1,5 @@
 #updated on Jul 8, 2022
+#updated on Jul 29, 2022
 package graphSimply;
 
 use strict;
@@ -42,8 +43,8 @@ sub filterGraph{
   chomp(@content);
   close infile1;
 
-  my @seqs=grep {/^S/} @content;
-  my @links=grep {/^L/} @content;
+  @seqs=grep {/^S/} @content;
+  @links=grep {/^L/} @content;
 
   my @delete_nos1;
 
@@ -240,6 +241,18 @@ sub add_copy{#before_info,copy_no,after_info
       push @seq_cp_no,$_;
 	  }
   }
+}
+
+sub zhongweishu{
+  my @sorted=sort {$a <=> $b} @_;
+  my $mid_num;
+  if(@sorted%2){
+    $mid_num=$sorted[int(@sorted/2)+1];
+  }
+  else{
+    $mid_num=($sorted[int(@sorted/2)]+$sorted[int(@sorted/2)+1])/2;
+  }
+  return $mid_num;
 }
 
 1;

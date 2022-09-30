@@ -1,6 +1,7 @@
 #!perl
 #updated on Jul 15, 2022
 #fixed several bugs in rm_bb_cp function
+#updated on Jul 29,2022
 package graphFilterPt;
 
 use strict;
@@ -32,8 +33,6 @@ sub filterPt{
 
   @seqs=grep {/^S/} @content;
   @links=grep {/^L/} @content;
-
-  my @delete_nos1;
   my %ori_rev=('+'=>'-','-'=>'+');
 
   my $temp_count = -1;
@@ -135,7 +134,7 @@ sub filterPt{
     push @bandage,join(',',@this_paths);
   }
   close infile2;
-
+  remove_nodes();
   my $del_num1=-1;
   while($del_num1 != 0){
 
