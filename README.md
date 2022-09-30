@@ -22,7 +22,8 @@ This toolkit required several necessary tools which should be installed in the `
 
 - [**blastn**](https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
 - [**minimap2**](https://github.com/lh3/minimap2)
-- [**mafft**](https://mafft.cbrc.jp/alignment/software/) 
+- [**mafft**](https://mafft.cbrc.jp/alignment/software/)
+- [**SPAdes**](https://github.com/ablab/spades) [used only in graphShort pipeline]
 
 ## Usage
 
@@ -51,7 +52,7 @@ Detailed usage information for each command could be found by using the command 
 
 ## Version
 
-GSAT version 1.00 (2022-07-17)
+GSAT version 1.10 (2022-09-30)
 
 ## Author
 
