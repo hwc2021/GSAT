@@ -37,7 +37,7 @@ This toolkit required several necessary tools which should be installed in the `
        graphSimplify        simplify the graph based on supported mapped paths of long reads.
        rmOverlap            remove the overlaping regions from a graph
 
-    -- Pipelines (incoming)
+    -- Pipelines
        graphShort           generate a Organelle Graph from a raw graph of de novo assembly
        graphLong            generate a Mitochondrial Rough Graph from a OG
        graphSimplification  generate a Mitochondrial Rough Master Graph from a MRG
