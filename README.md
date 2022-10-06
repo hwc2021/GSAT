@@ -6,7 +6,15 @@ An effective graph-based toolkit to assembly plant organelle genomes into simple
 
 Just download the file and uncompress it to where you want to install in. The executable file `gsat` could be found in the `bin` directory.
 
+    #install by using git
+    git clone https://github.com/hwc2021/GSAT.git
     cd GSAT/bin
+    chmod a+x gsat
+    
+    #install by downloading the source codes
+    #put the source code file "GSAT-main.zip" where you want to install in
+    unzip GSAT-main.zip
+    cd GSAT-main/bin
     chmod a+x gsat
     
 Edit the `.bashrc` file to add this directory to your environment variable `PATH`. For example, in a typical Linux system:
