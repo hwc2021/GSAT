@@ -69,4 +69,4 @@ GSAT version 1.10 (2022-09-30)
   AGIS, CAAS
   
 ## Feedback
-Any comments, bug reports, and suggestions are very welcomed. They will help us to further improve GSAT. If you have any troubles running GSAT, please leave your comments and bug reports at our GitHub issue page or sent it via e-mail.
+Any comments, bug reports, and suggestions are very welcomed. They will help us to further improve GSAT. If you have any troubles running GSAT, please leave your comments and bug reports at our GitHub [**issues page**](https://github.com/hwc2021/GSAT/issues) or sent it via e-mail.
