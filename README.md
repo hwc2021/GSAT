@@ -65,5 +65,8 @@ GSAT version 1.10 (2022-09-30)
 ## Author
 
   Wenchuang He
-  nongke2@163.com
+  nongke2@163.com / hewenchuang@caas.cn
   AGIS, CAAS
+  
+## Feedback
+Any comments, bug reports, and suggestions are very welcomed. They will help us to further improve GSAT. If you have any troubles running GSAT, please leave your comments and bug reports at our GitHub issue page or sent it via e-mail.
