@@ -58,6 +58,34 @@ This toolkit required several necessary tools which should be installed in the `
        
 Detailed usage information for each command could be found by using the command without any option.
 
+## Examples for using pipelines
+
+All pipeline commands can be easily applied with a specified configure file, which provides all necessary params to the pipelines of GSAT. The detailed params for each pipeline can be found in the example configure file `example.conf`. Notably, each pipeline reads only valid options from the configure file, i.e., params for different pipelines can be either put together in a single configure file or put in different files. 
+
+- graphShort
+
+    gsat graphShort -conf example.conf
+
+This will generate a raw graph of de novo genome assembly based on Illumina paired-end reads, and then produce a Organelle Graph (OG). The OG will be save as `og.filtered.gfa` in the output dir.
+
+- graphLong
+
+    gsat graphLong -conf example.conf
+
+This will generate a Mitochondrial Rough Graph (MRG) from a OG based on graph-mapping between OG and long reads. The MRG will be saved as `mrg.filtered.gfa` in the output dir.
+
+- graphSimplification
+
+    gsat graphSimplification -conf example.conf
+
+This will generate a Mitochondrial Rough Master Graph (MRMG) from a MRG. The MRMG will be saved as `mrmg.simplified.gfa` in the output dir.
+
+- graphCorrection
+
+    gsat graphCorrection -conf example.conf
+
+This will generate a Mitochondrial Master Graph (MMG) from a MRMG. The MMG will be saved as `mmg.corrCtg.gfa` in the output dir.
+
 ## Version
 
 GSAT version 1.10 (2022-09-30)
