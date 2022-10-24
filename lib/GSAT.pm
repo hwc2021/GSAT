@@ -134,7 +134,7 @@ GSAT version 1.00 (2022-07-14)
     Usage:   gsat graphShort [options]
 
     -conf [str]        the config file.*
-    -cpu [int]         number of cpu cores which could be used for the pipeline.\n";
+    -cpu [int]         number of cpu cores which could be used for the pipeline.
 
     Note: the * denoted a required option.
 
