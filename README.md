@@ -66,7 +66,7 @@ All pipeline commands can be easily applied with a specified configure file, whi
 
         gsat graphShort -conf example.conf
 
-This will generate a raw graph of de novo genome assembly based on Illumina paired-end reads, and then produce a Organelle Graph (OG). The OG will be saved as `og.filtered.gfa` in the output dir. Please note that the params for graphShort should be adjusted for different species, so the resulted OG should be checked and edited in [**Bandage**](https://github.com/rrwick/Bandage) before it can be used for the next pipeline.
+This will generate a raw graph of de novo genome assembly based on Illumina paired-end reads, and then produce a Organelle Graph (OG). The OG will be saved as `og.filtered.gfa` in the output dir. Please note that the params for graphShort should be adjusted for different species, so the resulted OG should be checked and edited in [Bandage](https://github.com/rrwick/Bandage) before it can be used for the next pipeline.
 
 - graphLong
 
