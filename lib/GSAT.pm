@@ -1,4 +1,5 @@
 package GSAT;
+#updated at Nov 22th, 2022: fixed a bug related to the params in example.conf
 
 =pod
 
@@ -134,7 +135,7 @@ GSAT version 1.00 (2022-07-14)
     Usage:   gsat graphShort [options]
 
     -conf [str]        the config file.*
-    -cpu [int]         number of cpu cores which could be used for the pipeline.
+    -cpu [int]         number of cpu cores which could be used for the pipeline.\n";
 
     Note: the * denoted a required option.
 
@@ -386,8 +387,8 @@ sub readConf{
 
    my $used1='^'.join('$|^',@{$opt1x1}).'$';
    my $used2='^'.join('$|^',@{$opt2x1}).'$';
-   my @opt_a1=map {'-'.$opt1[$_].' '.$opt2[$_]} (grep {$opt1[$_]=~/$used1/} 0..$#opt1);
-   my @opt_a2=map {'-'.$opt1[$_].' '.$opt2[$_]} (grep {$opt1[$_]=~/$used2/} 0..$#opt1);
+   my @opt_a1=map {'-'.$opt1[$_].' '.$opt2[$_]} (grep {$opt2[$_] ne 'off' && $opt1[$_]=~/$used1/} 0..$#opt1);
+   my @opt_a2=map {'-'.$opt1[$_].' '.$opt2[$_]} (grep {$opt2[$_] ne 'off' && $opt1[$_]=~/$used2/} 0..$#opt1);
    my ($optsv3)=map {$opt2[$_]} (grep {$opt1[$_]=~/$out/} 0..$#opt1);
    $optsv3 = 'gsat' if length($optsv3) < 1;
    my $usedu1='^'.join('$|^',@{$opt1x2}).'$';
