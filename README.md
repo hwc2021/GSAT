@@ -90,11 +90,15 @@ This will generate a Mitochondrial Master Graph (MMG) from a MRMG. The MMG will 
 
 GSAT version 1.10 (2022-09-30)
 
-## Author
+## Contact
 
   Wenchuang He
   nongke2@163.com / hewenchuang@caas.cn
   AGIS, CAAS
-  
+
+## Citation
+
+He, W., Xiang, K., Chen, C., Wang, J., and Wu, Z. (2023). Master graph: an essential integrated assembly model for the plant mitogenome based on a graph-based framework. Brief Bioinform 2410.1093/bib/bbac522.
+
 ## Feedback
 Any comments, bug reports, and suggestions are very welcomed. They will help us to further improve GSAT. If you have any troubles running GSAT, please leave your comments and bug reports at our GitHub [**issues page**](https://github.com/hwc2021/GSAT/issues) or sent it via e-mail.
