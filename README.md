@@ -29,7 +29,7 @@ Edit the `.bashrc` file to add this directory to your environment variable `PATH
 This toolkit required several necessary tools which should be installed in the `PATH`:
 
 - [**blastn**](https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
-- [**minimap2**](https://github.com/lh3/minimap2)
+- [**minimap2 (version >= 2.19)**](https://github.com/lh3/minimap2)
 - [**mafft**](https://mafft.cbrc.jp/alignment/software/)
 - [**SPAdes**](https://github.com/ablab/spades) [used only in graphShort pipeline]
 
