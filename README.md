@@ -88,7 +88,7 @@ This will generate a Mitochondrial Master Graph (MMG) from a MRMG. The MMG will 
 
 ## Version
 
-GSAT version 1.10 (2022-09-30)
+GSAT version 1.11 (2022-10-14)
 
 ## Contact
 
