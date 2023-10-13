@@ -1,7 +1,8 @@
 #!perl
 #updated on Jul 15, 2022
-#fixed several bugs in rm_bb_cp function
-#updated on Jul 29,2022
+#fixed several bugs in filterPt and rm_bb_cp functions on Mar 27, 2023
+#fixed a bug when remove the edge-bubble; updated the messages. Oct 13, 2023
+
 package graphFilterPt;
 
 use strict;
@@ -59,6 +60,7 @@ sub filterPt{
     $temp_count++;
   }
 
+  remove_nodes();
   my @bandage;#最终结果赋值给@bandage，在此处直接对末端进行过滤即可。
   my $file_head=<infile2>;
   foreach (<infile2>){
@@ -70,11 +72,11 @@ sub filterPt{
     $this_path =~ s/^\([^\(\)]+\)|\([^\(\)]+\)$//g;
     #rm_edge_bubble #循环去除边界bubble，如何处理边界比对结果：打满比对范围即可
     while($this_path =~ m/^\{/){
-      $this_path =~ s/^\{[^,\}]+\},//;
+      $this_path =~ s/^\{[^,\}]+\},*//;
       $f_stat=1;
     }
     while($this_path =~ m/\}$/){
-      $this_path =~ s/,\{[^,\}]+\}$//;
+      $this_path =~ s/,*\{[^,\}]+\}$//;
       $l_stat=1;
     }
 
@@ -91,6 +93,11 @@ sub filterPt{
   
     #去除匹配过短的末端
     $this_path =~ s/\{\@[^\}]+\},*|\([^\)]+\),*|\[[^\]]+\],*//g;#去除距离等附加信息
+	if(length($this_path) == 0){
+	  warn "Warning: A path was fitered due to zero length after removing distance and other information. \n";
+	  next;
+	}
+	
     my @this_paths=split(/,/,$this_path);
     if($f_stat == -1){
       my $f_ctg=$this_paths[0];
@@ -231,7 +238,7 @@ sub remove_nodes{
   my @threads_depths=map {$seq_depth[$_]} (grep {$seq_length[$_] >= 350} 0..$#seq_length);
 
   my $thread=zhongweishu(@threads_depths)*2.2;
-  print "Thread was changed into: $thread \n";
+  print "The threshold was changed into: $thread \n";
   splice @seq_mt_no;
   splice @seq_long_mt_name;
   splice @seq_cp_no;
@@ -247,19 +254,32 @@ sub remove_nodes{
   }
 }
 
-#rm_bubble_cp，理论上说此步骤是由于gmapper区分不开cp和mt同源ctg，而采取的临时性优化措施。
+#rm_bubble_cp，理论上说此步骤是由于gmapper区分不开cp和mt同源ctg，而采取的临时性优化措施。但强行删除pt片段可能会导致真正来源于pt的reads被错误鉴定为mt来源，因此并不推荐使用此选项。
 sub rm_bb_cp{
   my $path1=shift @_;
-  my $path2;
-  foreach (@seq_cp_no){
-    my $cp_name=$seq_name[$_];
+  my $path2=$path1;
+#  foreach (@seq_cp_no){
+#    my $cp_name=$seq_name[$_];
 
-    while($path1 =~ /\{([^\}]+)\}/g){
+    while($path1 =~ /\{(\@*)([^\}]+)\}/g){
       my $pf=$`;
       my $pl=$';
-      my @non_pt=grep {$_ !~ /${cp_name}[\+\-]/} (split(';',$1));
+	  my @t_nodes=split(';',$2);
+	  my @non_pt;
+	  foreach my $t_pt(@t_nodes){
+        my $t_s=0;
+	    foreach my $nn(@seq_cp_no){
+          my $cp_name=$seq_name[$nn];
+		  if($t_pt =~ /\b${cp_name}[\+\-]/){
+            $t_s ++;
+			last;
+		  }		  
+	    }
+		push @non_pt,$t_pt if $t_s == 0;
+	  }
+      #my @non_pt=grep {$_ !~ /${cp_name}[\+\-]/} (split(';',$2));
       if(@non_pt >1){
-        $path2=$pf.'{'.join(";",@non_pt).'}'.$pl;
+        $path2=$pf.'{'.$1.join(";",@non_pt).'}'.$pl;
       }
       elsif(@non_pt == 1){
         $path2=$pf.$non_pt[0].$pl;
@@ -268,11 +288,7 @@ sub rm_bb_cp{
         $path2=$path1;
       }
     }
-
-    #$path1 =~ s/(\{)([^\@,\}]+);[^\@,;\}]*${cp_name}[\+\-]([^\@,\}]*\})/$1$2$3/g;
-    #$path1 =~ s/(\{)[^\@,;\}]*${cp_name}[\+\-];([^\@,\}]+)(\})/$1$2$3/g;
-    #$path1 =~ s/\{([^;,\}]+)\}/$1/g;
-  }
+#  }
   return $path2;
 }
 

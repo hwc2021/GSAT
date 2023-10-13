@@ -1,5 +1,6 @@
 #updated on Jul 8, 2022
 #updated on Jul 29, 2022
+#updated on Mar 29, 2023
 package graphSimply;
 
 use strict;
@@ -33,6 +34,8 @@ my %ori_rev=('+'=>'-','-'=>'+');
 my @bandage;
 my $out_pre;
 
+my %seqn_uniq;
+
 sub filterGraph{
   ($infile1,$infile2,$min_path_no,$min_end_length,$out_pre)=@_;
 
@@ -64,6 +67,7 @@ sub filterGraph{
       }
   
     push @seq_name,$name;
+    $seqn_uniq{$name}=$name;
     push @seq_length,$length;
     push @seq_depth,$temp_dep;
   }
@@ -132,10 +136,10 @@ sub filterGraph{
           my $right=$after_names[$r_no];
           my $r_ori=$after_ori[$r_no];
           #my $path_code1='\b'."${left}".'\b[^,]*,[^,]*\b'."${temp_target}".'\b[^,]*,[^,]*\b'."${right}".'\b';#兼容GraphMapper
-          my $path_code1='\b'."${left}"."\\$l_ori".','."${temp_target}".'\+,'."${right}\\$r_ori";
+          my $path_code1='\b'.$seqn_uniq{$left}."\\$l_ori".','.$seqn_uniq{$temp_target}.'\+,'.$seqn_uniq{$right}."\\$r_ori";
 
 	        #my $path_code2='\b'."${right}".'\b[^,]*,[^,]*\b'."${temp_target}".'\b[^,]*,[^,]*\b'."${left}".'\b';#兼容GraphMapper
-          my $path_code2='\b'."${right}\\".$ori_rev{$r_ori}.','."${temp_target}".'\-,'."${left}\\".$ori_rev{$l_ori};
+          my $path_code2='\b'.$seqn_uniq{$right}."\\".$ori_rev{$r_ori}.','.$seqn_uniq{$temp_target}.'\-,'.$seqn_uniq{$left}."\\".$ori_rev{$l_ori};
 
           my @paths=grep {/${path_code1}|${path_code2}/} @bandage;
 	        #print "@bandage \n";#test
@@ -204,6 +208,7 @@ sub add_copy{#before_info,copy_no,after_info
   }
   
   push @seq_name,$new_name;
+  $seqn_uniq{$new_name}=$seqn_uniq{$sd_name};
   push @seq_length,$seq_length[$c_no];
   push @seq_depth,$seq_depth[$c_no];
   

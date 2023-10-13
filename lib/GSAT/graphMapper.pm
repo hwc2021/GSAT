@@ -48,6 +48,8 @@ use GSAT::graphIO;
 #use Getopt::Long::Configure qw(bundling no_ignore_case);
 #use Smart::Comments;
 
+#更改mapping策略，minimap2仅用于>500bp的ctg
+#因此重整mapping代码架构
 my @align_info;
 my @sub_ori;
 my ($no_Qid,$no_Qlen,$no_Qs,$no_Qe,$no_Sid,$no_Slen,$no_Ss,$no_Se,$no_ori,$no_alp,$no_ai)=(0..10);

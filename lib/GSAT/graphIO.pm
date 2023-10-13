@@ -1,3 +1,5 @@
+#Updated on Apr 10, 2023
+
 package graphIO;
 
 use strict;
@@ -6,12 +8,13 @@ use List::MoreUtils qw(any uniq);
 use List::Util 'max';
 use List::Util 'min';
 
-sub readFas{
+sub readFas{#为提高运算效率，使用引用传递数组/也可能完全用不到这个模块
   my $fas=shift @_;
   my $count=-1;
   my @fas_name;
   my @fas_seq;
   foreach (@{$fas}){
+	chomp;
     if(/^>/){
       $count ++;
       $fas_name[$count]=$_;
@@ -24,12 +27,13 @@ sub readFas{
   return (\@fas_name,\@fas_seq);
 }
 
-sub readGfa{
+sub readGfa{#为提高运算效率，使用引用传递数组
   my $gfa=shift @_;
   my $get=shift @_;#SPL or S or SL, etc.
   my %S_info;#name-seq/depth;
   my @P_info;#[array]
   my @L_info;#[node1,or1,node2,or2,cov_length]
+  chomp(@{$gfa});
 
   if($get =~ /S/){
     foreach (@{$gfa}){

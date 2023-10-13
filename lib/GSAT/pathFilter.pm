@@ -1,4 +1,5 @@
 #updated on Jul 8, 2022
+#updated on Feb 4, 2023
 package pathFilter;
 
 sub filterPath{
@@ -14,15 +15,18 @@ sub filterPath{
         $this_path =~ s/^\([^\(\)]+\)|\([^\(\)]+\)$//g;
         
         while($this_path =~ /^\{/){
-            $this_path =~ s/^\{[^,\}]+\},//;
+            $this_path =~ s/^\{[^,\}]+\}//;
+            $this_path =~ s/^,//;
             $f_stat=1;
         }
         while($this_path =~ /\}$/){
             $this_path =~ s/,\{[^,\}]+\}$//;
+            $this_path =~ s/,$//;
             $l_stat=1;
         }
   
         $this_path =~ s/\{\@[^\}]+\},*|\([^\)]+\),*|\[[^\]]+\],*//g;#去除距离等附加信息
+        next if length($this_path) == 0;
         my @this_paths=split(/,/,$this_path);
         if($f_stat == -1){
             my $f_ctg=$this_paths[0];
