@@ -1,6 +1,12 @@
 package GSAT;
 #updated at Nov 22th, 2022: fixed a bug related to the params in example.conf
 
+#参考circos布局
+
+#功能分成graphfilt,graphmap,graphcorr,graphsimply等选项，不可联用；pipe分成graph-short，graph-long，graph-sim，graph-corr等选项即可，可联用。功能与pipeline不可同时设定
+#支持参数放进config文件里；功能中config文件为可选项；pipeline要求必须有config文件。
+#统一放入文件夹中。此外，不同pipeline放入不同子文件夹。
+
 =pod
 
 =head1 NAME
@@ -135,7 +141,7 @@ GSAT version 1.00 (2022-07-14)
     Usage:   gsat graphShort [options]
 
     -conf [str]        the config file.*
-    -cpu [int]         number of cpu cores which could be used for the pipeline.\n";
+    -cpu [int]         number of cpu cores which could be used for the pipeline.
 
     Note: the * denoted a required option.
 
