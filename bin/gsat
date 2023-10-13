@@ -31,7 +31,7 @@ GSAT - Graph-based Sequence Assembly Toolkit
 
 =head1 VERSION
 
-GAST version 1.11 (2022-10-14)
+GAST version 1.11 (2023-10-14)
 
 =head1 DESCRIPTION
 
@@ -54,7 +54,7 @@ This toolkit required several necessary tools which could be found in the PATH v
 
 The MIT License
 
-Copyright (c) 2022-     AGIS, CAAS
+Copyright (c) 2022-2023     AGIS, CAAS
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
