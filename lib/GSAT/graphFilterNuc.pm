@@ -40,7 +40,7 @@ sub filterNuc{
     if($temp =~ /DP:f:([0-9\.]+)/){
       $temp_dep=$1;
     }
-    elsif($temp =~ /KC:i:([0-9]+)/){
+    elsif($temp =~ /KC:i:([0-9]+)|RC:i:([0-9]+)/){
       $temp_dep=$1/$length;
     }
     else{

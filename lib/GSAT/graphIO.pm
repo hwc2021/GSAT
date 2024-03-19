@@ -1,4 +1,5 @@
 #Updated on Apr 10, 2023
+#Updated on Mar 19, 2024
 
 package graphIO;
 
@@ -44,7 +45,7 @@ sub readGfa{#为提高运算效率，使用引用传递数组
         my $temp_length=length($temp_info[2]);
         $S_info{$temp_info[1]}{'len'}=$temp_length;
 
-        if($temp_info[3] =~ /KC:i:([0-9]+)/){
+        if($temp_info[3] =~ /KC:i:([0-9]+)|RC:i:([0-9]+)/){
          $S_info{$temp_info[1]}{'dep'} = $1 / $temp_length;
         }
         elsif($temp_info[3] =~ /DP:f:([0-9\.]+)/){
