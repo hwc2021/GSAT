@@ -1,6 +1,7 @@
 #updated on Jul 8, 2022
 #updated on Jul 29, 2022
 #updated on Mar 29, 2023
+#updated on Mar 19, 2024
 package graphSimply;
 
 use strict;
@@ -56,7 +57,7 @@ sub filterGraph{
     my $name=$1;
     my $length=length($2);
     my $temp_dep;
-    if($each_info =~ /KC:i:([0-9]+)/){
+    if($each_info =~ /[KR]C:i:([0-9]+)/){
       $temp_dep=$1/$length;
       }
       elsif($each_info =~ /DP:f:([0-9\.]+)/){
