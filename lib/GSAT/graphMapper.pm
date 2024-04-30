@@ -29,6 +29,10 @@
 #updated at 3rd July: fixed a bug for minIden
 #updated at 21th Sep: fixed a bug that can cause a wrong identification of the format of alignment files
 #updated at 30th Sep: fixed a bug for option strictBub
+#Disabled: 测试代码20240411：Lines581-591：如果read被ctg完全覆盖，则忽略其他map不完整的比对结果。（存在缺陷：若该read处于两个ctg的边界区，则两个ctg的比对都会被错误忽略；该缺陷同时也会影响其他存在替代比对的结果，需要后续进一步解决）
+#更新代码20240412：修正了alignment merging中存在的一个bug
+#更新代码20240415：优化调整了max_iden_gap相关功能代码
+#更新代码20240429：修正了minimap2的0-based位置问题
 
 package graphMapper;
 use strict;
@@ -141,9 +145,14 @@ sub readmap{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽�
         $temp_ori='+';
       }
     }
-    else{
+    elsif($fmt eq 'paf'){
       $temp_ali_iden=$line_info[$ali_matchs_no]/$temp_ali_len*100;
       $temp_ori=$line_info[$subject_ori_no];
+      $selected_info[$no_Ss] += 1;#covert to 1-based position
+      $selected_info[$no_Qs] += 1;#covert to 1-based position
+    }
+    else{
+      die "Error: Wrong alignment file type!\n";
     }
   
     next if ($temp_ali_iden < 100*$min_iden) || ($temp_ali_len < $min_ali_len);
@@ -410,7 +419,7 @@ sub gmap{
   }
   
   open out_path,">${out_prefix}.mapping.paths";
-  print out_path "Read_id\tRead_length\tGapped_length\tMapped_ratio\tMapped_path\tFirstCtgAliPos\tLastCtgAliPos\tMappedCtgs\tAdjustedReadAliPos\tAdjustedCtgAlipos\n";
+  print out_path "Read_id\tRead_length\tGapped_length\tMapped_ratio\tMapped_path\tFirstCtgAliPos\tLastCtgAliPos\tMappedCtgs\tMappedOrientation\tAdjustedReadAliPos\tAdjustedCtgAlipos\n";
   open out_reads_stat,">${out_prefix}.mt.reads";
   print out_reads_stat "Read_id\tRead_length\tRead_mt_coverage\tMappedEdgesOfContigs\tMappedContigs\n";
   
@@ -490,7 +499,7 @@ sub gmap{
       if(@temp_no_r >=2){
         foreach my $i(0..$#temp_no_r){
           my @temp_merge=@{$align_info[$temp_no_r[$i]]};
-          foreach my $j($i+1..$#temp_no_f){
+          foreach my $j($i+1..$#temp_no_r){
             my $dis_len1 = $align_info[$temp_no_r[$j]]->[$no_Ss] - $temp_merge[$no_Se];
             my $dis_len2 = $temp_merge[$no_Qs] - $align_info[$temp_no_r[$j]]->[$no_Qe];#q和s的se是反向对应的#updated in v1.520
             my $hit_len1 = $align_info[$temp_no_r[$j]]->[$no_Se] - $align_info[$temp_no_r[$j]]->[$no_Ss];
@@ -503,7 +512,7 @@ sub gmap{
               #合并会导致align_info的-2, -1两个元素值，即比对长度比例和比对准确度，不再准确，因此也需要进行重新计算#$no_alp,$no_ai
               $temp_merge[$no_alp]=($temp_merge[$no_Se]-$temp_merge[$no_Ss]+1)/$slength{$this_ctg};
               #合并后的iden难以计算，暂时取近似值，谨慎使用合并相关的参数
-              $temp_merge[$no_ai]=$hit_len1/($hit_len1+$hit_len2)*$align_info[$temp_no_f[$j]]->[$no_ai] + $hit_len2/($hit_len1+$hit_len2)*$temp_merge[$no_ai];
+              $temp_merge[$no_ai]=$hit_len1/($hit_len1+$hit_len2)*$align_info[$temp_no_r[$j]]->[$no_ai] + $hit_len2/($hit_len1+$hit_len2)*$temp_merge[$no_ai];
             }
           }
           push @temp_m_r,[@temp_merge];
@@ -566,6 +575,7 @@ sub gmap{
   
     #包含性鉴定与过滤
     my @sorted_merge_final;
+    #my @sorted_merge0;
     my ($test_s,$test_e)=($sorted_merged[0]->[$no_Qs],$sorted_merged[0]->[$no_Qe]);
     if(@sorted_merged >= 2){
       #my @rm_nos;
@@ -576,9 +586,18 @@ sub gmap{
         else{
           push @sorted_merge_final,$test_info;
   	      ($test_s,$test_e)=($test_info->[$no_Qs],$test_info->[$no_Qe]);
+
+          #if($test_info->[$no_Qs] <= 1 && $test_info->[$no_Qe] == $test_info->[$no_Qlen]){#注意：此处未判断identity和其他参数。
+          #  push @sorted_merge0,$test_info;
+          #}
         }
       }
-      @sorted_merged=@sorted_merge_final;
+      #if(@sorted_merge0 > 0){
+      #  @sorted_merged=@sorted_merge0;
+      #}
+      #else{
+        @sorted_merged=@sorted_merge_final;
+      #}
     }  
   
     my $ali_head_ctg_pos;
@@ -608,7 +627,7 @@ sub gmap{
       #匹配在read内部或者path内部，都必须满足内含标准
       if((($sorted_merged[$this_no]->[$no_Qs] > $max_edge_size) || ($sorted_merged[$this_no]->[$no_Qs] > $align_r_mins)) && (($sorted_merged[$this_no]->[$no_Qe] < ($read_len - $max_edge_size)) || ($sorted_merged[$this_no]->[$no_Qs] < $align_r_maxs))){
         if(($sorted_merged[$this_no]->[$no_Ss] > bounderCheck($slength{$sorted_merged[$this_no]->[$no_Sid]})) || ($sorted_merged[$this_no]->[$no_Se] < $slength{$sorted_merged[$this_no]->[$no_Sid]} - bounderCheck($slength{$sorted_merged[$this_no]->[$no_Sid]}))){
-        	print "warning: this ctg [ ".$sorted_merged[$this_no]->[$no_Sid]." ] with be skipped for the read: $this_read \n";
+        	print "warning: this ctg [ ".$sorted_merged[$this_no]->[$no_Sid]." ] will be skipped for the read: $this_read \n";
   	      next;
         }
       }
@@ -655,12 +674,6 @@ sub gmap{
           $gapped_length += $f_dis if $f_stat == 9;
         }
   
-        #考虑通过比较bubble结构的相似性，block百分比和iden都要最大，才能排除
-        if($max_iden_gap < 1){
-          @now_the_nos=removeFake(\@sorted_merged,@now_the_nos);#暂不确定这一步该放在哪个环节。
-          die"all nos were removed!\n" if @now_the_nos == 0;#test
-        }
-  
         my @record_codes=map {$sorted_merged[$_]->[$no_Sid].$sorted_merged[$_]->[$no_ori]} @now_the_nos;
         my $record_code='{'.$f_code_p.join(';',@record_codes).'}';
         my $record_pos=join(';',map {$sorted_merged[$_]->[$no_Ss].'-'.$sorted_merged[$_]->[$no_Se]} @now_the_nos);
@@ -693,6 +706,13 @@ sub gmap{
           }
   
           if(@passed_nos >=1){
+              
+            #考虑通过比较bubble结构的相似性，block百分比和iden都要最大，才能排除
+            if($max_iden_gap < 1){
+              @passed_nos=removeFake(\@sorted_merged,@passed_nos);#暂不确定这一步该放在哪个环节。
+              die"[error] all nos were removed!\n" if @passed_nos == 0;#test
+            }
+
             my @the_codes=map {$sorted_merged[$_]->[$no_Sid].$sorted_merged[$_]->[$no_ori]} @passed_nos;
             my $the_code=$f_code_p.join(';',@the_codes);
             $the_code = "{$the_code}" if @passed_nos >=2;
@@ -824,9 +844,19 @@ sub gmap{
 sub removeFake{#移除条件：匹配长度百分比必须最低；可选项，iden小于最优值的差异。原则：只要与集合中最高iden的差异超过阈值即可。注意：该功能会导致bubble结构与uni-contig区域reads的筛选标准不一致，影响深度统计结果，因此不建议使用。
   my $the_merged=shift;
   my @the_nos=@_;
-  my $max_iden=max(map {${$the_merged}[$_]->[$no_ai]} @the_nos);
+  my $max_ino;
+  my $max_iden=0;
+  foreach (@the_nos){
+    if(${$the_merged}[$_]->[$no_ai] > $max_iden){
+      $max_iden = ${$the_merged}[$_]->[$no_ai];
+      $max_ino = $_;
+    }
+  }
+
   my $min_alp=min(map {${$the_merged}[$_]->[$no_alp]} @the_nos);
   my @sel_nos=grep {my $adj_this_alp=${$the_merged}[$_]->[$no_alp];$adj_this_alp = 1 if $adj_this_alp > 1;!(($max_iden - ${$the_merged}[$_]->[$no_ai] >= $max_iden_gap) && ($adj_this_alp <= $min_alp))} @the_nos;
+
+  @sel_nos=($max_ino) if @sel_nos == 0;#如果全被移除，则保留最佳结果：暂时认定为identity最高的为最佳结果。
 
   return @sel_nos;
 }

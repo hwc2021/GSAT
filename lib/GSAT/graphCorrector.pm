@@ -1,6 +1,7 @@
 #updated in version 1.03: removed the gaps remained in the corrected gfa file.
 #updated in version 1.031: fixed a big bug in the readGfa module
 #updated at Aug 19,2022: fixed a bug related to GraphIO module.
+#updated at 20240430: fixed some bugs when record the variations.
 package graphCorrector;
 
 use strict;
@@ -134,7 +135,7 @@ sub grapCorr{
   my %ctg_var;
   my %ctg_dep;
   foreach (keys %{$gfa_S}){
-    $ctg_var{$_}=[({}) x ${$gfa_S}{$_}{'len'}];
+    $ctg_var{$_}=[({})];
     $ctg_dep{$_}=[(0) x ${$gfa_S}{$_}{'len'}];
   }
   foreach my $path_no(0..$#path_Rid){
@@ -184,7 +185,7 @@ sub grapCorr{
         my $alt_nuc=join('',@ali_r_seqs[$ali_s .. $ali_e]);
         if($alt_nuc ne $ref_nuc){
           if(not exists ${$ctg_var{$this_ctg}->[$loc0]}{$alt_nuc}){
-           $ctg_var{$this_ctg}->[$loc0]={$alt_nuc => '1'};
+            ${$ctg_var{$this_ctg}->[$loc0]}{$alt_nuc} = 1;
           }
           else{
             ${$ctg_var{$this_ctg}->[$loc0]}{$alt_nuc} ++;
@@ -217,6 +218,7 @@ sub grapCorr{
       my $stat;
   
       if(@true_no >1){
+        warn "$ctg\t$loc0\t".$ctg_ref[$loc0]."\t$dep_count\t$var_sum\tundefined\t".join(';',@alt_type)."\t".join(';',@alt_count)."\n";
         die "Error: Found two or more genotypes which should be corrected in the same locus. Please check your min_ratio_corr option!\n";
       }
       elsif(@true_no == 1){
