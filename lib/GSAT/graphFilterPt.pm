@@ -2,6 +2,7 @@
 #updated on Jul 15, 2022
 #fixed several bugs in filterPt and rm_bb_cp functions on Mar 27, 2023
 #fixed a bug when remove the edge-bubble; updated the messages. Oct 13, 2023
+#fixed a bug in rm_bb_cp function. Nov 22, 2024
 
 package graphFilterPt;
 
@@ -258,12 +259,18 @@ sub remove_nodes{
 sub rm_bb_cp{
   my $path1=shift @_;
   my $path2=$path1;
+  my $b_no=0;
+  my $path3='';
 #  foreach (@seq_cp_no){
 #    my $cp_name=$seq_name[$_];
 
     while($path1 =~ /\{(\@*)([^\}]+)\}/g){
+	  $b_no ++;
       my $pf=$`;
       my $pl=$';
+	  $path3=$pl;
+	  my $ptar=$&;
+	  my $p_pre=$1;
 	  my @t_nodes=split(';',$2);
 	  my @non_pt;
 	  foreach my $t_pt(@t_nodes){
@@ -278,17 +285,30 @@ sub rm_bb_cp{
 		push @non_pt,$t_pt if $t_s == 0;
 	  }
       #my @non_pt=grep {$_ !~ /${cp_name}[\+\-]/} (split(';',$2));
-      if(@non_pt >1){
-        $path2=$pf.'{'.$1.join(";",@non_pt).'}'.$pl;
+      my $tar_path;
+	  if(@non_pt >1){
+        #$path2=$pf.'{'.$p_pre.join(";",@non_pt).'}'.$pl;
+		$tar_path='{'.$p_pre.join(";",@non_pt).'}';
       }
       elsif(@non_pt == 1){
-        $path2=$pf.$non_pt[0].$pl;
+        #$path2=$pf.$non_pt[0].$pl;
+		$tar_path=$non_pt[0];
       }
       else{
-        $path2=$path1;
+        #$path2=$path1;
+		$tar_path=$ptar;
       }
+	  if($b_no == 1){
+		$path2=$pf.$tar_path;
+	  }
+	  else{
+		$pf =~ /\}([^\{\}]+)$/;
+		die "Error: Fatal error in rmBubble_cp function!\n" if length($1) == 0;
+		$path2 .= $1.$tar_path;
+	  }
     }
 #  }
+  $path2 .= $path3;
   return $path2;
 }
 
