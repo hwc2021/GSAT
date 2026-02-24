@@ -2,6 +2,14 @@
 
 An effective graph-based toolkit to assembly plant organelle genomes into simple and accurate master graphs, consisting of many graph-based tools for processing the genome assembly results and high throughout sequencing data.
 
+## GSAT v1.60 Changelog
+
+GSAT has been updated to version 1.60. This release introduces several key improvements:
+- New Features:​ Major new functionalities including `graphClip`, `graphMatrix`, and `graphMerge`.
+- New Module:​ The `pathCorr` module, now integrated within the existing `graphSimplify` function and `graphSimplification` pipeline.
+- Performance Enhancements:​ The `graphCorr` function and `graphCorrection` pipeline have been optimized with multi-threading support, drastically improving run speed and optimizing memory consumption.
+- Bug Fixes:​ Resolution of various issues for improved stability.
+
 ## Installation
 
 Just download the file and uncompress it to where you want to install in. The executable file `gsat` could be found in the `bin` directory.
@@ -58,6 +66,10 @@ This toolkit required several necessary tools which should be installed in the `
        
 Detailed usage information for each command could be found by using the command without any option.
 
+## Guidelines for usage
+
+These instructions will be refined and expanded in future updates.
+
 ## Examples for using pipelines
 
 All pipeline commands can be easily applied with a specified configure file, which provides all necessary params to the pipelines of GSAT. The detailed params for each pipeline can be found in the example configure file `example.conf`. Notably, each pipeline reads only valid options from the configure file, i.e., params for different pipelines can be either put together in a single configure file or put in different files. 
@@ -88,7 +100,7 @@ This will generate a Mitochondrial Master Graph (MMG) from a MRMG. The MMG will 
 
 ## Version
 
-GSAT version 1.12 (2024-04-30)
+GSAT version 1.60 (2026-02-24)
 
 ## Contact
 
