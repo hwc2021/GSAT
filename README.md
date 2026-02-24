@@ -51,7 +51,11 @@ This toolkit required several necessary tools which should be installed in the `
        graphMap             conduct graph mapping to detect mapped paths in a graph for query sequence
        graphCorr            correct the sequences in a graph by using long reads. HIFI reads is recommanded.
        graphSimplify        simplify the graph based on supported mapped paths of long reads.
-       rmOverlap            remove the overlaping regions from a graph
+       rmOverlap            remove the overlaping regions from a graph.
+       graphClip            clip the graph based on the supports of long reads.
+       graphMerge           merge all possible nodes.
+       graphStat            generate a summary of assembled graphs.
+       graphMatrix          generate a distance matrix across different graphs.
 
     -- Pipelines
        graphShort           generate a Organelle Graph from a raw graph of de novo assembly
