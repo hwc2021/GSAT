@@ -16,7 +16,11 @@ GSAT - Graph-based Sequence Assembly Toolkit
        graphMap             conduct graph mapping to detect mapped paths in a graph for query sequence
        graphCorr            correct the sequences in a graph by using long reads. HIFI reads is recommanded.
        graphSimplify        simplify the graph based on supported mapped paths of long reads.
-       rmOverlap            remove the overlaping regions from a graph
+       rmOverlap            remove the overlaping regions from a graph.
+       graphClip            clip the graph based on supporting of long reads.
+       graphMerge           merge all possible nodes. 
+       graphStat            generate a summary of the assembled graphs.
+       graphMatrix          generate a distance matrix across different graphs.
 
     -- Pipelines
        graphShort           generate a Organelle Graph from a raw graph of de novo assembly
@@ -31,7 +35,7 @@ GSAT - Graph-based Sequence Assembly Toolkit
 
 =head1 VERSION
 
-GAST version 1.12 (2023-04-30)
+GAST version 1.60 (2026-02-24)
 
 =head1 DESCRIPTION
 
@@ -54,7 +58,7 @@ This toolkit required several necessary tools which could be found in the PATH v
 
 The MIT License
 
-Copyright (c) 2022-2023     AGIS, CAAS
+Copyright (c) 2022-2026     AGIS, CAAS
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
