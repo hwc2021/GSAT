@@ -1,5 +1,8 @@
 #Updated on Apr 10, 2023
 #Updated on Mar 19, 2024
+#Updated on Feb 15, 2025
+#updated on Feb 26, 2025: fixed a bug for gfa_L
+#updated on Dec 23, 2025
 
 package graphIO;
 
@@ -41,6 +44,12 @@ sub readGfa{#为提高运算效率，使用引用传递数组
       if(/^S/){
         my @temp_info=split(/\t/,$_,4);
         $S_info{$temp_info[1]}{'seq'}=$temp_info[2];
+        if($temp_info[2] =~ /NNNNNNNNNN|nnnnnnnnnn/){
+          $S_info{$temp_info[1]}{'nstat'}=1;
+        }
+        else{
+          $S_info{$temp_info[1]}{'nstat'}=0;
+        }
         
         my $temp_length=length($temp_info[2]);
         $S_info{$temp_info[1]}{'len'}=$temp_length;
@@ -67,13 +76,48 @@ sub readGfa{#为提高运算效率，使用引用传递数组
       if(/^L/){
         my @L_inf=split(/\t/);
         shift @L_inf;
-        $L_inf[-1] =~ s/M$//;
+        $L_inf[-1] =~ s/M\s*$//;
         push @L_info,[@L_inf];
       }
     }
   }
 
   return (\%S_info,\@P_info,\@L_info);
+}
+
+sub nodeNeighbors{
+  my $links=shift;
+  my %node_lk;
+  my %ori_r=('+','-','-','+');
+  foreach my $lk(@{$links}){
+    my $qo_rev=$ori_r{$lk->[1]};
+    my $so_rev=$ori_r{$lk->[3]};
+    if(exists $node_lk{$lk->[0]}{$lk->[1]}{'right'}){
+      push @{$node_lk{$lk->[0]}{$lk->[1]}{'right'}},$lk->[2].$lk->[3];
+    }
+    else{
+      $node_lk{$lk->[0]}{$lk->[1]}{'right'}=[$lk->[2].$lk->[3]];
+    }
+    if(exists $node_lk{$lk->[0]}{$qo_rev}{'left'}){
+      push @{$node_lk{$lk->[0]}{$qo_rev}{'left'}},$lk->[2].$so_rev;
+    }
+    else{
+      $node_lk{$lk->[0]}{$qo_rev}{'left'}=[$lk->[2].$so_rev];
+    }
+    if(exists $node_lk{$lk->[2]}{$lk->[3]}{'left'}){
+      push @{$node_lk{$lk->[2]}{$lk->[3]}{'left'}},$lk->[0].$lk->[1];
+    }
+    else{
+      $node_lk{$lk->[2]}{$lk->[3]}{'left'}=[$lk->[0].$lk->[1]];
+    }
+    if(exists $node_lk{$lk->[2]}{$so_rev}{'right'}){
+      push @{$node_lk{$lk->[2]}{$so_rev}{'right'}},$lk->[0].$qo_rev;
+    }
+    else{
+      $node_lk{$lk->[2]}{$so_rev}{'right'}=[$lk->[0].$qo_rev];
+    }
+  }
+  return %node_lk;
 }
 
 1;

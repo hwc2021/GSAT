@@ -33,6 +33,15 @@
 #更新代码20240412：修正了alignment merging中存在的一个bug
 #更新代码20240415：优化调整了max_iden_gap相关功能代码
 #更新代码20240429：修正了minimap2的0-based位置问题
+#更新代码20250215：优化blastn流程，支持多线程；增加对后续pathCorr功能的支持
+#更新代码20250305：优化了blastn参数
+#更新代码20250805：尝试对替代路径进行矫正
+#更新代码20250905：优化了nctg的比对问题
+#更新代码20250908：优化了对copy序列的路径筛选策略
+#更新代码20250909：优化了对depth的计算策略，修复了无path信息的ctg被忽略的bug
+#更新代码20251119：调整替代路径判断策略，优化所有替代路径的矫正问题
+#更新代码20251210： fixed a bug in processing alternative paths
+#更新代码20251224： fixed a bug in processing repetitive contigs.
 
 package graphMapper;
 use strict;
@@ -84,7 +93,11 @@ my $only_depth=0;
 my $cd_filter=0;
 my $minimap2;
 my $maxBounderRatio=0.1;
-my $strict_bubble='yes';
+my $strict_bubble='off';
+my $comb_max_dis_nstat = 500;#针对nstat为1的contig使用特定合并值
+my $alterDisRatio=0.25;
+my $gfa_S;
+my $gfa_L;
 
 sub readmap{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽略。
   my ($fmt,$data)=@_;
@@ -117,8 +130,11 @@ sub readmap{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽�
     $ali_length_no=10;
     $ali_matchs_no=9;
   }
-  else{
+  elsif($fmt eq 'b7'){
     ;
+  }
+  else{
+    die "Error: Wrong alignment file type!\n";
   }
 
   foreach my $line(@{$data}){
@@ -126,8 +142,8 @@ sub readmap{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽�
     my @line_info=split(/\t/,$line);
     die"Error: The standard format 7 of the blast results is not supported!\nAlternatively the -outfmt code must be like this: -outfmt '7 qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen'\n" if $fmt eq 'b7' && @line_info < 14;
   
-    $qlength{$line_info[$query_id_no]}=$line_info[$query_len_no];
-    $slength{$line_info[$subject_id_no]}=$line_info[$subject_len_no];
+    #$qlength{$line_info[$query_id_no]}=$line_info[$query_len_no];
+    #$slength{$line_info[$subject_id_no]}=$line_info[$subject_len_no];
   
     my @selected_info=@line_info[$query_id_no,$query_len_no,$query_start_no,$query_end_no,$subject_id_no,$subject_len_no,$subject_start_no,$subject_end_no];
   
@@ -136,6 +152,7 @@ sub readmap{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽�
     my $temp_ali_iden;
     if($fmt eq 'b7'){
       $temp_ali_iden=$line_info[$ali_iden_no];
+      $temp_ali_iden=(1-($line_info[4]/$line_info[3]))*100 if ${$gfa_S}{$line_info[$query_id_no]}{'nstat'} > 0;
 
       if($line_info[$subject_start_no] > $line_info[$subject_end_no]){
         ($selected_info[$no_Ss],$selected_info[$no_Se]) = ($selected_info[$no_Se],$selected_info[$no_Ss]);
@@ -144,6 +161,8 @@ sub readmap{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽�
       else{
         $temp_ori='+';
       }
+
+      @selected_info = @selected_info[4..7,0..3];#增加-bd参数后，调整数据格式
     }
     elsif($fmt eq 'paf'){
       $temp_ali_iden=$line_info[$ali_matchs_no]/$temp_ali_len*100;
@@ -154,13 +173,15 @@ sub readmap{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽�
     else{
       die "Error: Wrong alignment file type!\n";
     }
+    $qlength{$selected_info[$no_Qid]}=$selected_info[$no_Qlen];
+    $slength{$selected_info[$no_Sid]}=$selected_info[$no_Slen];
   
     next if ($temp_ali_iden < 100*$min_iden) || ($temp_ali_len < $min_ali_len);
-    my $temp_ali_lengthprop=($line_info[$subject_end_no]-$line_info[$subject_start_no]+1)/$line_info[$subject_len_no];
+    my $temp_ali_lengthprop=($selected_info[$no_Se]-$selected_info[$no_Ss]+1)/$selected_info[$no_Slen];
 
     my @old_qc;
-    @old_qc=@{$qcoverage{$line_info[$query_id_no]}{'dep'}} if exists $qcoverage{$line_info[$query_id_no]};
-    $qcoverage{$line_info[$query_id_no]}={calc_cov(@line_info[$query_len_no,$query_start_no,$query_end_no],\@old_qc)};
+    @old_qc=@{$qcoverage{$selected_info[$no_Qid]}{'dep'}} if exists $qcoverage{$selected_info[$no_Qid]};
+    $qcoverage{$selected_info[$no_Qid]}={calc_cov(@selected_info[$no_Qlen,$no_Qs,$no_Qe],\@old_qc)};
   
     push @sub_ori,$temp_ori;
     push @align_info,[@selected_info,$temp_ori,$temp_ali_lengthprop,$temp_ali_iden];
@@ -295,19 +316,76 @@ sub phaseOpt{
   }
 }
 
-my $gfa_S;
-my $gfa_L;
 sub gmap{
   phaseOpt(@_);
   $max_offset1=$maxOffsetDefault if !(defined($max_offset1) || defined($max_offset2));
   $out_prefix = basename($gfa_file) if ! defined($out_prefix);
 
-    open(gfaFile,"$gfa_file") || die "Error: Cannot open the file: $gfa_file \n";
+  open(gfaFile,"$gfa_file") || die "Error: Cannot open the file: $gfa_file \n";
   chomp(my @gfa_content=<gfaFile>);
   
   ($gfa_S,undef,$gfa_L)=graphIO::readGfa(\@gfa_content,'SL');
   my $gfa_lnk_k=${$gfa_L}[0]->[-1];
-  
+
+  #记录全部node的前后连接信息
+  my @gfas_names=sort keys %{$gfa_S};
+=DelCode
+  my %detected;
+  my $node_copy=0;
+  foreach my $qnn(0..$#gfas_names-1){
+    next if exists $detected{$gfas_names[$qnn]};
+    my $test_seq1=${$gfa_S}{$gfas_names[$qnn]}{'seq'};
+    my $test_seq2=$test_seq1;
+    $test_seq2 =~ tr/atcgATCG/tagcTAGC/;
+    foreach my $snn($qnn+1..$#gfas_names){
+      my $q_seq=${$gfa_S}{$gfas_names[$snn]}{'seq'};
+      if($test_seq1 eq $q_seq or $test_seq2 eq $q_seq){
+        $node_copy ++;
+        if(exists $detected{$gfas_names[$qnn]}){
+          push @{$detected{$gfas_names[$qnn]}},$gfas_names[$snn];
+          push @{$detected{$gfas_names[$snn]}},$gfas_names[$qnn];
+        }
+        else{
+          $detected{$gfas_names[$qnn]}=[$gfas_names[$snn]];
+          $detected{$gfas_names[$snn]}=[$gfas_names[$qnn]];
+        }        
+      }
+    }
+  }
+=cut
+
+  #记录node相连的前后信息
+  my %node_lk;
+  my %ori_r=('+','-','-','+');
+  foreach my $lk(@{$gfa_L}){
+    my $qo_rev=$ori_r{$lk->[1]};
+    my $so_rev=$ori_r{$lk->[3]};
+    if(exists $node_lk{$lk->[0]}{$lk->[1]}{'right'}){
+      push @{$node_lk{$lk->[0]}{$lk->[1]}{'right'}},$lk->[2].$lk->[3];
+    }
+    else{
+      $node_lk{$lk->[0]}{$lk->[1]}{'right'}=[$lk->[2].$lk->[3]];
+    }
+    if(exists $node_lk{$lk->[0]}{$qo_rev}{'left'}){
+      push @{$node_lk{$lk->[0]}{$qo_rev}{'left'}},$lk->[2].$so_rev;
+    }
+    else{
+      $node_lk{$lk->[0]}{$qo_rev}{'left'}=[$lk->[2].$so_rev];
+    }
+    if(exists $node_lk{$lk->[2]}{$lk->[3]}{'left'}){
+      push @{$node_lk{$lk->[2]}{$lk->[3]}{'left'}},$lk->[0].$lk->[1];
+    }
+    else{
+      $node_lk{$lk->[2]}{$lk->[3]}{'left'}=[$lk->[0].$lk->[1]];
+    }
+    if(exists $node_lk{$lk->[2]}{$so_rev}{'right'}){
+      push @{$node_lk{$lk->[2]}{$so_rev}{'right'}},$lk->[0].$qo_rev;
+    }
+    else{
+      $node_lk{$lk->[2]}{$so_rev}{'right'}=[$lk->[0].$qo_rev];
+    }
+  }
+
   my $offset_center;
   my $offset_length;
   my $ctg_start;
@@ -331,7 +409,7 @@ sub gmap{
     open(gfaFas1,">${out_prefix}.part1.fas");
     open(gfaFas2,">${out_prefix}.part2.fas");
   
-    foreach my $each(sort keys %{$gfa_S}){
+    foreach my $each(@gfas_names){
       if(${$gfa_S}{$each}{'len'} >= 500){
         print gfaFas1 '>'.$each."\n".${$gfa_S}{$each}{'seq'}."\n";
         $long_num ++;
@@ -371,7 +449,15 @@ sub gmap{
   
       if($short_num > 0){
         print "[info] align short ctgs to the long reads with blastn.\n";
-        `blastn -query $read_file -subject ${out_prefix}.part2.fas -task blastn -dust no -outfmt $b7fmt -out ${out_prefix}.part2.reads.b7`;#注意这里默认返回的最大hits数量是500条
+        `makeblastdb -in $read_file -dbtype nucl -out ${out_prefix}_reads`;
+        open(dbinfo,"${out_prefix}_reads.njs") || die "Error: The blast+ was not well installed or the makeblastdb cannot generate a valid database for the read file.\n";
+        (my $seqn)=grep {/number\-of\-sequences/} <dbinfo>;
+        $seqn =~ /([0-9]+),/;
+        my $seqnum=$1;
+
+        `blastn -query ${out_prefix}.part2.fas -db ${out_prefix}_reads -task blastn -dust no -evalue 1e-5 -max_target_seqs $seqnum -outfmt $b7fmt -out ${out_prefix}.part2.reads.b7`;#当前优化参数
+        #`blastn -query ${out_prefix}.part2.fas -db ${out_prefix}_reads -dust no -gapopen 1 -gapextend 1 -max_target_seqs $seqnum -outfmt $b7fmt -out ${out_prefix}.part2.reads.b7`;#之前优化参数
+        #`blastn -query $read_file -subject ${out_prefix}.part2.fas -task blastn -dust no -outfmt $b7fmt -out ${out_prefix}.part2.reads.b7`;#之前的参数，注意这里默认返回的最大hits数量是500条
         $b7_file="${out_prefix}.part2.reads.b7";
         open (align_file,$b7_file) || die "Error: Cannot open the file: $b7_file ! \n";
         chomp(my @mapped=<align_file>);
@@ -385,8 +471,15 @@ sub gmap{
     }
     elsif($short_num + $long_num > 0){
       print "[info] align all ctgs to the long reads with blastn.\n";
+      `makeblastdb -in $read_file -dbtype nucl -out ${out_prefix}_reads`;
+      open(dbinfo,"${out_prefix}_reads.njs") || die "Error: The blast+ was not well installed or the makeblastdb cannot generate a valid database for the read file.\n";
+      (my $seqn)=grep {/number\-of\-sequences/} <dbinfo>;
+      $seqn =~ /([0-9]+),/;
+      my $seqnum=$1;
+
       `cat ${out_prefix}.part1.fas ${out_prefix}.part2.fas > ${out_prefix}.fas`;
-      `blastn -query $read_file -subject ${out_prefix}.fas -dust no -outfmt $b7fmt -out ${out_prefix}.reads.b7`;#注意这里默认返回的最大hits数量是500条
+      `blastn -query ${out_prefix}.fas -db ${out_prefix}_reads -dust no -gapopen 1 -gapextend 1 -max_target_seqs $seqnum -outfmt $b7fmt -out ${out_prefix}.reads.b7`;#当前优化参数
+      #`blastn -query $read_file -subject ${out_prefix}.fas -dust no -outfmt $b7fmt -out ${out_prefix}.reads.b7`;#注意这里默认返回的最大hits数量是500条#原始参数
   
       $b7_file="${out_prefix}.reads.b7";
       open (align_file,$b7_file) || die "Error: Cannot open the file: $b7_file ! \n";
@@ -433,7 +526,10 @@ sub gmap{
   
     my @this_merged;
     #my @this_merged_ori;
+    
     foreach my $this_ctg(@these_ctgs){
+      my $tmp_comb_max=$comb_max_dis;
+      $comb_max_dis=$comb_max_dis_nstat if ${$gfa_S}{$this_ctg}{'nstat'} > 0;
       my @temp_m_f;
       my @temp_m_r;
       #正向
@@ -563,10 +659,12 @@ sub gmap{
           #push @this_merged_ori,'-';
         }
       }
+
+      $comb_max_dis = $tmp_comb_max;
     }
   
     #排列，编码，输出path
-    my @sorted_merged=sort {$a->[$no_Qs] <=> $b->[$no_Qs]} @this_merged;
+    my @sorted_merged=sort {$a->[$no_Qs] <=> $b->[$no_Qs] || $b->[$no_Qe] <=> $a->[$no_Qe]} @this_merged;
     my @ctg_with_ends=uniq (map {$_->[$no_Sid]} @sorted_merged);
     my $edge_ali=@ctg_with_ends;#是否比对到末端
      
@@ -576,14 +674,20 @@ sub gmap{
     #包含性鉴定与过滤
     my @sorted_merge_final;
     #my @sorted_merge0;
-    my ($test_s,$test_e)=($sorted_merged[0]->[$no_Qs],$sorted_merged[0]->[$no_Qe]);
+    my ($test_s,$test_e,$test_i)=($sorted_merged[0]->[$no_Qs],$sorted_merged[0]->[$no_Qe],$sorted_merged[0]->[$no_ai]);
     if(@sorted_merged >= 2){
       #my @rm_nos;
       foreach my $test_info(@sorted_merged){
-        if(($test_info->[$no_Qs] > $test_s) && ($test_info->[$no_Qe] < $test_e)){
-          #push @rm_nos,$test_no;
+        my $in_stat1=0;
+        my $in_stat2=0;
+        if($test_info->[$no_ai] >= $test_i && ($test_info->[$no_Qe] < $test_e || ($test_info->[$no_Qs] > $test_s && $test_info->[$no_Qe] == $test_e))){
+          $in_stat1=1;
         }
-        else{
+        if($test_info->[$no_Qs] > $test_s && $test_info->[$no_Qe] < $test_e){
+          $in_stat2=1;
+        }
+        
+        if($in_stat1 == 0 && $in_stat2 == 0 ){
           push @sorted_merge_final,$test_info;
   	      ($test_s,$test_e)=($test_info->[$no_Qs],$test_info->[$no_Qe]);
 
@@ -636,7 +740,8 @@ sub gmap{
   
       #控制索引值不能超过边界，否则每次引用都会自动创建新元素
       if($now_no <= $#sorted_merged){
-        next if $sorted_merged[$now_the_nos[0]]->[$no_Qs] == $sorted_merged[$now_no]->[$no_Qs];
+        #在此处判断是否要一起分析：若Qs与下一个Qs相距<=0.5*lk-len，则合并分析
+        next if $sorted_merged[$now_no]->[$no_Qs] - $sorted_merged[$now_the_nos[0]]->[$no_Qs] <= $alterDisRatio * $gfa_lnk_k;
       }
   
       print "Now is the read: $this_read ; and ctg_nos: @now_the_nos \n";#only for test
@@ -717,7 +822,7 @@ sub gmap{
             my $the_code=$f_code_p.join(';',@the_codes);
             $the_code = "{$the_code}" if @passed_nos >=2;
             push @path_codes,$the_code;
-            push @passed_merge_no,$passed_nos[0] if @passed_nos == 1; #存在备选形式的ctg将不会被记录为可信结果。
+            push @passed_merge_no,join(':',@passed_nos); #存在备选形式的ctg也被记录。
             #pos_end
             $last_Qe=max(map {$sorted_merged[$_]->[$no_Qe]} @passed_nos);
             $ali_head_ctg_pos=join(';',map {$sorted_merged[$_]->[$no_Ss].'-'.$sorted_merged[$_]->[$no_Se]} @passed_nos) if ! defined($ali_head_ctg_pos);
@@ -725,6 +830,7 @@ sub gmap{
           }
           else{          
             push @path_codes,'{@'.$f_code_p.join(';',@record_codes).'}';#contig连接关系无法确认最佳路径
+            push @passed_merge_no,'NA';#具有风险的ctg信息不记录
           }
   #      }
   #      else{
@@ -747,6 +853,91 @@ sub gmap{
       $gapped_length += $end_dis;
       $path_codes[-1] .= $end_code;
     }
+
+    #对raw-code中的替代路径进行矫正,要求替代序列完全相同。
+    #if($node_copy > 0){
+      foreach my $t_code(0..$#path_codes){
+        if($path_codes[$t_code] =~ /\{([^@\}\s]+)\}/){
+          my @test_code=split(/;/,$1);
+          my @code_t;
+          my %code_f;
+          my @test_pass_no=split(/:/,$passed_merge_no[$t_code]);
+          foreach my $t_nn(0..$#test_code){
+            if($test_code[$t_nn] =~ /([a-zA-Z0-9_\.]+)([\+\-])/){
+              my $t1=$1;
+              my $t2=$2;
+              #if(exists $detected{$t1}){
+                my $tleft;
+                my $tright;
+                $tleft='\\b'.join('|\\b',@{$node_lk{$t1}{$t2}{'left'}}) if exists $node_lk{$t1}{$t2}{'left'};
+                $tright='\\b'.join('|\\b',@{$node_lk{$t1}{$t2}{'right'}}) if exists $node_lk{$t1}{$t2}{'right'};
+                my $stat_t=0;
+                if($t_code >= 1 && defined $tleft){
+                  #$stat_t ++;
+                  if($path_codes[$t_code-1] =~ /$tleft/){
+                    ;
+                  }
+                  else{
+                    $stat_t = -1;
+                    warn "Mismatch: ".$path_codes[$t_code-1]." xxxxxx ".$tleft."\n";
+                  }
+                }
+                if($t_code < $#path_codes && defined $tright){
+                  #$stat_t ++;
+                  if($path_codes[$t_code+1] =~ /$tright/){
+                    ;
+                  }
+                  else{
+                    $stat_t = -1;
+                  }
+                }
+                if($stat_t == -1){
+                  $code_f{$t_nn}=1;
+                }
+                else{
+                  push @code_t,$t_nn;
+                }
+              #}
+            }
+            else{
+              die"Error: Exceptional issues found! Please check the sequence names in gfa file. \n";
+            }
+          }
+
+          my @test_code_no;
+          if(@code_t > 0 && %code_f){
+            @test_code_no=grep {not exists $code_f{$_}} 0..$#test_code;
+          }
+          my @test_code_x=map {$test_code[$_]} @test_code_no;
+          if($t_code==0){
+            my @ali_h_ps=split(/;/,$ali_head_ctg_pos);
+            my @ali_h_ps_new=map {$ali_h_ps[$_]} @test_code_no;
+            $ali_head_ctg_pos=join(';',@ali_h_ps_new);
+          }
+          elsif($t_code == $#path_codes){
+            my @ali_t_ps=split(/;/,$ali_tail_ctg_pos);
+            my @ali_t_ps_new=map {$ali_t_ps[$_]} @test_code_no;
+            $ali_tail_ctg_pos=join(';',@ali_t_ps_new);
+          }
+          else{
+            ;
+          }
+
+          if(@test_code_no > 1){
+            $path_codes[$t_code]='{'.join(';',@test_code_x).'}';
+            $passed_merge_no[$t_code]='NA';#替代路径不记录比对结果
+          }
+          elsif(@test_code_no==1){
+            $path_codes[$t_code]=$test_code_x[0];
+            $passed_merge_no[$t_code]=$test_code_no[0];
+          }
+          else{
+            warn "Warnning: repeats could not be resolved!\n";
+            $passed_merge_no[$t_code]='NA';#替代路径不记录比对结果
+          }
+        }
+      }
+    #}
   
     my $cov_ratio=($read_len - $gapped_length)/$read_len;
     my @pass_Sid;
@@ -754,6 +945,7 @@ sub gmap{
     my @pass_Qse;
     my @pass_Sse;
     foreach my $pass_no(@passed_merge_no){
+      next if $pass_no eq 'NA';
       push @pass_Sid,$sorted_merged[$pass_no]->[$no_Sid];
       push @pass_ori,$sorted_merged[$pass_no]->[$no_ori];
       push @pass_Qse,$sorted_merged[$pass_no]->[$no_Qs].','.$sorted_merged[$pass_no]->[$no_Qe];
@@ -863,10 +1055,15 @@ sub removeFake{#移除条件：匹配长度百分比必须最低；可选项，i
 
 sub calcu_depth{
   my %result_dep;
+  #初始化信息
+  foreach my $c(keys %{$gfa_S}){
+    $result_dep{$c}=[(0) x ${$gfa_S}{$c}{'len'}];
+  }
+
   foreach my $this_rec(@_){
     my ($ctg_n,$ctg_ali)=@{$this_rec};######why empty  
     #print join("-",@{$this_rec})."\n";#test
-    $result_dep{$ctg_n}=[map {'0'} (0 .. (${$gfa_S}{$ctg_n}{'len'} - 1))] if not exists $result_dep{$ctg_n};
+    #$result_dep{$ctg_n}=[map {'0'} (0 .. (${$gfa_S}{$ctg_n}{'len'} - 1))] if not exists $result_dep{$ctg_n};
     #print $ctg_ali."\n";#test
     my ($ctg_a_s,$ctg_a_e)=split(/\-/,$ctg_ali);
     foreach ($ctg_a_s-1 .. $ctg_a_e-1){
