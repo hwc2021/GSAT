@@ -95,7 +95,7 @@ my $minimap2;
 my $maxBounderRatio=0.1;
 my $strict_bubble='off';
 my $comb_max_dis_nstat = 500;#针对nstat为1的contig使用特定合并值
-my $alterDisRatio=0.25;
+my $alterDisRatio=0;
 my $gfa_S;
 my $gfa_L;
 
