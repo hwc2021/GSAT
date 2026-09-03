@@ -3,6 +3,7 @@
 #fixed several bugs in filterPt and rm_bb_cp functions on Mar 27, 2023
 #fixed a bug when remove the edge-bubble; updated the messages. Oct 13, 2023
 #fixed a bug in rm_bb_cp function. Nov 22, 2024
+#enable depth from long-reads-mapping and a new param for identify mtpt-segment. Jul 28, 2026
 
 package graphFilterPt;
 
@@ -23,11 +24,39 @@ my @seq_long_mt_name;
 my @seq_name;
 my @seq_length;
 my @seq_depth;
+my %n_dep;
+my $map_min_len=2000;
+my $map_min_ratio=0.9;
 
 sub filterPt{
-  our ($infile1,$infile2,$min_path_no,$min_end_length,$rm_bubble_cp,$remain_bubble,$outP)=@_;
+  our ($infile1,$infile2,$min_path_no,$min_end_length,$rm_bubble_cp,$remain_bubble,$outP,$infile3)=@_;
   open (infile1,$infile1) || die "Cannot open the file: $infile1\n";
   open (infile2,$infile2) || die "Cannot open the file: $infile2\n";
+  if(not defined $infile3){
+    $infile3 = $infile2;
+    $infile3 =~ s/.mapping.paths$//;
+    $infile3 .= '.passed.depth';
+  }
+  open(infile3,$infile3) || die "Cannot open the file: $infile3\n";
+
+  my %tmp_d;
+  foreach my $ll(<infile3>){
+    chomp($ll);
+    my ($id,undef,$dd)=split(/\t/,$ll);
+    if(not exists $tmp_d{$id}){
+      $tmp_d{$id}=[$dd];
+    }
+    else{
+      push @{$tmp_d{$id}},$dd;
+    }
+  }
+  close infile3;
+
+  foreach my $ii(keys %tmp_d){
+    $n_dep{$ii}=zhongweishu(@{$tmp_d{$ii}});
+  }
+
+  undef %tmp_d;
 
   my @content=<infile1>;
   chomp(@content);
@@ -38,12 +67,16 @@ sub filterPt{
   my %ori_rev=('+'=>'-','-'=>'+');
 
   my $temp_count = -1;
+  #my @seq_seq;
   foreach my $each_info(@seqs){
     #my (undef,$name,undef,$length,$temp)=split(/\t/);
     $each_info =~ /^S\t([^\t]+)\t([^\t]+)\t/;
     my $name=$1;
-    my $length=length($2);
+    my $t_seq=$2;
+    my $length=length($t_seq);
     my $temp_dep;
+
+    #my $temp_dep=$n_dep{$name};
     if($each_info =~ /[KR]C:i:([0-9]+)/){
       $temp_dep=$1/$length;
     }
@@ -55,14 +88,20 @@ sub filterPt{
     }
   
     push @seq_name,$name;
+    #push @seq_seq,$t_seq;
     push @seq_length,$length;
     push @seq_depth,$temp_dep;
   
     $temp_count++;
   }
 
+  #@seqs=map {join("\t",('S',$seq_name[$_],$seq_seq[$_],'DP:f:'.$seq_depth[$_]))} 0..$#seq_name;
+  #splice(@seq_seq);
+
   remove_nodes();
   my @bandage;#最终结果赋值给@bandage，在此处直接对末端进行过滤即可。
+  my @bdg_ctgs;
+  my @bdg_ali_poss;
   my $file_head=<infile2>;
   foreach (<infile2>){
     chomp;
@@ -140,6 +179,8 @@ sub filterPt{
       pop @this_paths;
     }
     push @bandage,join(',',@this_paths);
+    push @bdg_ctgs,$p_info[7];
+    push @bdg_ali_poss,$p_info[10];
   }
   close infile2;
   remove_nodes();
@@ -172,11 +213,29 @@ sub filterPt{
 	      next;
       }
 	    else{
-        my @linked=grep {/\b${temp_target}\b/} @bandage;
+        #my @linked=grep {/\b${temp_target}\b/} @bandage;
+        my @lked_no=grep {$bandage[$_] =~ /\b${temp_target}\b/} 0..$#bandage;
+
         my $conn_with_long=0;
-        foreach my $link_line(@linked){
+        foreach my $lk_n(@lked_no){
+          my $link_line=$bandage[$lk_n];
+          my @bb_ctg=split(/;/,$bdg_ctgs[$lk_n]);
+          my @bb_pos=split(/;/,$bdg_ali_poss[$lk_n]);
+          my ($target_no)=grep {$bb_ctg[$_] eq $temp_target} 0 .. $#bb_ctg;
+          next if not defined $target_no;
+          my ($tt_s,$tt_e)=split(/,/,$bb_pos[$target_no]);
+          my $tt_alen=$tt_e - $tt_s +1;
+          my $tt_aratio=$tt_alen/$seq_length[$this_seq];
+
           foreach my $long_name(@seq_long_mt_name){
-            if($link_line =~ /\b${long_name}\b/){
+            my ($long_no)=grep {$bb_ctg[$_] eq $long_name} 0 .. $#bb_ctg;
+            next if not defined $long_no;
+            my ($ls,$le) = split(/,/,$bb_pos[$long_no]);
+            my $l_alen=$le - $ls + 1;
+            my $l_aratio=$l_alen/$seq_length[$this_seq];
+	    print "pt_ctg: $temp_target #alen: $tt_alen aratio: $tt_aratio#\nmt_ctg: $long_name #alen: $l_alen aratio: $l_aratio #\n";#test
+
+            if($link_line =~ /\b${long_name}\b/ && ($tt_alen > $map_min_len || $tt_aratio > $map_min_ratio) && ($l_alen > $map_min_len || $l_aratio > $map_min_ratio)){
               $conn_with_long ++;
               print "Detected long mt contigs for cp-segs: ".$seq_name[$this_seq]." -- ${long_name}\n";
             }

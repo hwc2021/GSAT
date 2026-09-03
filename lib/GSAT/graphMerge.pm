@@ -1,4 +1,5 @@
 #Generated at Dec 4, 2025
+#updated at Aug 25, 2026: n_contig will be excluded in the merging process.
 
 package graphMerge;
 
@@ -81,6 +82,11 @@ sub gmerge{
   my %lk2lks;
   foreach my $i(0..$#{$gfa_L}){
     my ($n1,$r1,$n2,$r2,undef)=@{$gfa_L->[$i]};
+    if(${$gfa_S}{$n1}{'nstat'} > 0 || ${$gfa_S}{$n2}{'nstat'} > 0){
+      warn "Warnning: N-contigs will be skipped in the merging process.\n";
+      next;
+    }
+    
     if(exists $node_lk{$n1}{$r1}{'right'} && exists $node_lk{$n2}{$r2}{'left'} && @{$node_lk{$n1}{$r1}{'right'}} == 1 && @{$node_lk{$n2}{$r2}{'left'}} == 1 && $n1 ne $n2){
       push @m_lkn,$i;
       $c1 ++;

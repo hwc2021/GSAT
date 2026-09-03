@@ -5,6 +5,8 @@
 #updated at Aug 23, 2025
 #updated at Nov 30, 2025
 #updated at Dec 3, 2025
+#updated at Jul 13, 2026
+#Attention: the readmap2 function should be used with caution
 
 package graphClip;
 
@@ -87,6 +89,7 @@ sub readmap2{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽
       else{
         $temp_ori='+';
       }
+      @selected_info = @selected_info[4..7,0..3];#增加-db参数后，调整数据格式
     }
     elsif($fmt eq 'paf'){
       $temp_ali_iden=$line_info[$ali_matchs_no]/$temp_ali_len*100;
@@ -101,9 +104,9 @@ sub readmap2{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽
     next if ($temp_ali_iden < 100*$min_iden) || ($temp_ali_len < $min_ali_len);
     my $temp_ali_lengthprop=($line_info[$subject_end_no]-$line_info[$subject_start_no]+1)/$line_info[$subject_len_no];
 
-    my @old_qc;
-    @old_qc=@{$qcoverage{$line_info[$query_id_no]}{'dep'}} if exists $qcoverage{$line_info[$query_id_no]};
-    $qcoverage{$line_info[$query_id_no]}={calc_cov(@line_info[$query_len_no,$query_start_no,$query_end_no],\@old_qc)};
+    #my @old_qc;
+    #@old_qc=@{$qcoverage{$line_info[$query_id_no]}{'dep'}} if exists $qcoverage{$line_info[$query_id_no]};
+    #$qcoverage{$line_info[$query_id_no]}={calc_cov(@line_info[$query_len_no,$query_start_no,$query_end_no],\@old_qc)};
   
     push @sub_ori,$temp_ori;
     push @align_info,[@selected_info,$temp_ori,$temp_ali_lengthprop,$temp_ali_iden];
@@ -231,6 +234,8 @@ sub clip_graph{
   warn "Extracting the mapping information for mt-reads ... \n";
   my @sel_rno=grep {exists $sel_rid{$align_info[$_]->[$no_Qid]}} 0..$#align_info;
 
+  #预处理：合并碎片，合并后仍然过短则去除 #暂时不做预处理
+
   #收集处理后比对结果，分contig进行断点评估
   my %ctg_break;
   foreach my $rno(@sel_rno){
@@ -251,8 +256,8 @@ sub clip_graph{
         $cn_freq{$cn->[0]} = 1;
       }
     }
-    my @break_sort = map {[$_,$cn_freq{$_}]} (sort {$a <=> $b} keys %cn_freq);
-    warn "Find break points for $ctg : ".@break_sort."\n";
+    my @break_sort = map {warn "$ctg : $_ | ".$cn_freq{$_}."\n";[$_,$cn_freq{$_}]} (sort {$a <=> $b} keys %cn_freq);
+    warn "Find break points for $ctg : ".@break_sort." \n";
 
     my @break_tops;
     my $mid_lk=$link_ovl * 0.5;

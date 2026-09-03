@@ -42,6 +42,11 @@
 #更新代码20251119：调整替代路径判断策略，优化所有替代路径的矫正问题
 #更新代码20251210： fixed a bug in processing alternative paths
 #更新代码20251224： fixed a bug in processing repetitive contigs.
+#updated at 15th May: added a new param for alterDisRatio
+#updated at 18th Jun: fixed a bug in processing nstat-contigs
+#updated at 28th Jul: improved the estimation of identity on combined alignment
+#updated in v2 of 28th Jul: all identity ranges were revised from 1-100 to 0-1
+#updated at 30th Jul: applied an two-step filtering stratefy to improve the performance on nstat contigs (beta version)
 
 package graphMapper;
 use strict;
@@ -94,7 +99,8 @@ my $cd_filter=0;
 my $minimap2;
 my $maxBounderRatio=0.1;
 my $strict_bubble='off';
-my $comb_max_dis_nstat = 500;#针对nstat为1的contig使用特定合并值
+my $comb_max_dis_nstat = 5000;#针对nstat为1的contig使用特定合并值
+my $strict_nstat=0;#针对nstat为1的contig进行特别参数调整
 my $alterDisRatio=0;
 my $gfa_S;
 my $gfa_L;
@@ -151,8 +157,8 @@ sub readmap{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽�
     my $temp_ali_len=$line_info[$ali_length_no];
     my $temp_ali_iden;
     if($fmt eq 'b7'){
-      $temp_ali_iden=$line_info[$ali_iden_no];
-      $temp_ali_iden=(1-($line_info[4]/$line_info[3]))*100 if ${$gfa_S}{$line_info[$query_id_no]}{'nstat'} > 0;
+      $temp_ali_iden=$line_info[$ali_iden_no] / 100;
+      $temp_ali_iden=1-($line_info[4]/$line_info[3]) if ${$gfa_S}{$line_info[$query_id_no]}{'nstat'} > 0;
 
       if($line_info[$subject_start_no] > $line_info[$subject_end_no]){
         ($selected_info[$no_Ss],$selected_info[$no_Se]) = ($selected_info[$no_Se],$selected_info[$no_Ss]);
@@ -165,7 +171,7 @@ sub readmap{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽�
       @selected_info = @selected_info[4..7,0..3];#增加-bd参数后，调整数据格式
     }
     elsif($fmt eq 'paf'){
-      $temp_ali_iden=$line_info[$ali_matchs_no]/$temp_ali_len*100;
+      $temp_ali_iden=$line_info[$ali_matchs_no]/$temp_ali_len;
       $temp_ori=$line_info[$subject_ori_no];
       $selected_info[$no_Ss] += 1;#covert to 1-based position
       $selected_info[$no_Qs] += 1;#covert to 1-based position
@@ -176,7 +182,7 @@ sub readmap{#格式为paf/b7,\@alignfile#注意：<50bp的比对结果会被忽�
     $qlength{$selected_info[$no_Qid]}=$selected_info[$no_Qlen];
     $slength{$selected_info[$no_Sid]}=$selected_info[$no_Slen];
   
-    next if ($temp_ali_iden < 100*$min_iden) || ($temp_ali_len < $min_ali_len);
+    next if ($temp_ali_iden < $min_iden) || ($temp_ali_len < $min_ali_len);
     my $temp_ali_lengthprop=($selected_info[$no_Se]-$selected_info[$no_Ss]+1)/$selected_info[$no_Slen];
 
     my @old_qc;
@@ -271,6 +277,7 @@ sub phaseOpt{
         'filterPaths!'       => \$cd_filter,
         'minimap2=s'         => \$minimap2,
         'maxBounderRatio=f'  => \$maxBounderRatio,
+        'maxAltDisRatio=f'    => \$alterDisRatio,
         );
   my $option_lows=1;
   my $err_code;
@@ -327,8 +334,20 @@ sub gmap{
   ($gfa_S,undef,$gfa_L)=graphIO::readGfa(\@gfa_content,'SL');
   my $gfa_lnk_k=${$gfa_L}[0]->[-1];
 
-  #记录全部node的前后连接信息
+  #记录全部node的名字
   my @gfas_names=sort keys %{$gfa_S};
+
+  #判断是否开启$strict_nstat
+  my $min_r_cov_pre=$min_cov_read;
+  foreach my $t_id(@gfas_names){
+    if(${$gfa_S}{$t_id}{'nstat'} > 0){
+      $strict_nstat = 1;
+      $min_r_cov_pre = ($min_read_length - $comb_max_dis_nstat) / $min_read_length;
+      $min_r_cov_pre = 0 if $min_r_cov_pre < 0;
+
+      last;
+    }
+  }
 =DelCode
   my %detected;
   my $node_copy=0;
@@ -518,8 +537,7 @@ sub gmap{
   
   foreach my $this_read(keys %qlength){
     next if $qlength{$this_read} < $min_read_length;
-    next if $qcoverage{$this_read}{'cov'} < $min_cov_read;
-    #print out_reads_stat $this_read."\t".$qlength{$this_read}."\t".$qcoverage{$this_read}{'cov'}."\n";
+    next if $qcoverage{$this_read}{'cov'} < $min_r_cov_pre;
   
     my @sel_rows=grep {$align_info[$_]->[$no_Qid] eq $this_read} 0..$#align_info;
     my @these_ctgs=uniq (map {$align_info[$_]->[$no_Sid]} @sel_rows);
@@ -552,6 +570,8 @@ sub gmap{
               $temp_merge[$no_alp]=($temp_merge[$no_Se]-$temp_merge[$no_Ss]+1)/$slength{$this_ctg};
               #合并后的iden难以计算，暂时取近似值，谨慎使用合并相关的参数
               $temp_merge[$no_ai]=$hit_len1/($hit_len1+$hit_len2)*$align_info[$temp_no_f[$j]]->[$no_ai] + $hit_len2/($hit_len1+$hit_len2)*$temp_merge[$no_ai];
+              $qcoverage{$this_read}{'cov'} += $dis_len2 / $qlength{$this_read} if $dis_len2 > 0;
+              $temp_merge[$no_ai] -= abs(($dis_len1-$dis_len2)/($temp_merge[$no_Se]-$temp_merge[$no_Ss]+1)) if ${$gfa_S}{$this_ctg}{'nstat'} < 1;#取折衷策略：read和contig两处距离差代表了二者之间gap的大小，暂不考虑替换引起的序列差异
             }
             else{
               ;
@@ -609,6 +629,8 @@ sub gmap{
               $temp_merge[$no_alp]=($temp_merge[$no_Se]-$temp_merge[$no_Ss]+1)/$slength{$this_ctg};
               #合并后的iden难以计算，暂时取近似值，谨慎使用合并相关的参数
               $temp_merge[$no_ai]=$hit_len1/($hit_len1+$hit_len2)*$align_info[$temp_no_r[$j]]->[$no_ai] + $hit_len2/($hit_len1+$hit_len2)*$temp_merge[$no_ai];
+              $qcoverage{$this_read}{'cov'} += $dis_len2 / $qlength{$this_read} if $dis_len2 > 0;
+              $temp_merge[$no_ai] -= abs(($dis_len1-$dis_len2)/($temp_merge[$no_Se]-$temp_merge[$no_Ss]+1)) if ${$gfa_S}{$this_ctg}{'nstat'} < 1;#取折衷策略：read和contig两处距离差代表了二者之间gap的大小，暂不考虑替换引起的序列差异
             }
           }
           push @temp_m_r,[@temp_merge];
@@ -662,6 +684,9 @@ sub gmap{
 
       $comb_max_dis = $tmp_comb_max;
     }
+
+    #正式筛选read比对比例
+    next if $qcoverage{$this_read}{'cov'} < $min_cov_read;
   
     #排列，编码，输出path
     my @sorted_merged=sort {$a->[$no_Qs] <=> $b->[$no_Qs] || $b->[$no_Qe] <=> $a->[$no_Qe]} @this_merged;
@@ -674,7 +699,7 @@ sub gmap{
     #包含性鉴定与过滤
     my @sorted_merge_final;
     #my @sorted_merge0;
-    my ($test_s,$test_e,$test_i)=($sorted_merged[0]->[$no_Qs],$sorted_merged[0]->[$no_Qe],$sorted_merged[0]->[$no_ai]);
+    my ($test_s,$test_e,$test_i,$test_id)=($sorted_merged[0]->[$no_Qs],$sorted_merged[0]->[$no_Qe],$sorted_merged[0]->[$no_ai],$sorted_merged[0]->[$no_Qid]);
     if(@sorted_merged >= 2){
       #my @rm_nos;
       foreach my $test_info(@sorted_merged){
@@ -689,11 +714,17 @@ sub gmap{
         
         if($in_stat1 == 0 && $in_stat2 == 0 ){
           push @sorted_merge_final,$test_info;
-  	      ($test_s,$test_e)=($test_info->[$no_Qs],$test_info->[$no_Qe]);
+  	      ($test_s,$test_e,$test_i,$test_id)=($test_info->[$no_Qs],$test_info->[$no_Qe],$test_info->[$no_ai],$test_info->[$no_Qid]);#20260618
 
           #if($test_info->[$no_Qs] <= 1 && $test_info->[$no_Qe] == $test_info->[$no_Qlen]){#注意：此处未判断identity和其他参数。
           #  push @sorted_merge0,$test_info;
           #}
+        }
+        elsif(${$gfa_S}{$test_id}{'nstat'} > 0){
+          push @sorted_merge_final,$test_info;
+        }
+        else{
+          ;
         }
       }
       #if(@sorted_merge0 > 0){
@@ -810,12 +841,17 @@ sub gmap{
             @passed_nos=grep {$sorted_merged[$_]->[$no_Qe] == $max_end} @passed_nos;
           }
   
+          if($strict_nstat > 0){
+            my @p_nos=grep {${$gfa_S}{$sorted_merged[$_]->[$no_Qid]}{'nstat'} < 1} @passed_nos;
+            @passed_nos=@p_nos if @p_nos > 0;
+          }
+
           if(@passed_nos >=1){
               
             #考虑通过比较bubble结构的相似性，block百分比和iden都要最大，才能排除
             if($max_iden_gap < 1){
               @passed_nos=removeFake(\@sorted_merged,@passed_nos);#暂不确定这一步该放在哪个环节。
-              die"[error] all nos were removed!\n" if @passed_nos == 0;#test
+              die"[error] all nodes were removed!\n" if @passed_nos == 0;#test
             }
 
             my @the_codes=map {$sorted_merged[$_]->[$no_Sid].$sorted_merged[$_]->[$no_ori]} @passed_nos;
@@ -851,7 +887,13 @@ sub gmap{
     my ($end_stat,$end_code)=GetEdgeStat($end_dis,0,$offset_length);
     if($end_stat == 9){
       $gapped_length += $end_dis;
-      $path_codes[-1] .= $end_code;
+      if(@path_codes > 0){
+        $path_codes[-1] .= $end_code;
+      }
+      else{
+        $path_codes[0] = $end_code;
+      }
+      #$path_codes[-1] .= $end_code;
     }
 
     #对raw-code中的替代路径进行矫正,要求替代序列完全相同。
@@ -1037,16 +1079,18 @@ sub removeFake{#移除条件：匹配长度百分比必须最低；可选项，i
   my $the_merged=shift;
   my @the_nos=@_;
   my $max_ino;
+  my $max_irlen;
   my $max_iden=0;
   foreach (@the_nos){
     if(${$the_merged}[$_]->[$no_ai] > $max_iden){
       $max_iden = ${$the_merged}[$_]->[$no_ai];
+      $max_irlen=${$the_merged}[$_]->[$no_Qe]-${$the_merged}[$_]->[$no_Qs] + 1;
       $max_ino = $_;
     }
   }
 
-  my $min_alp=min(map {${$the_merged}[$_]->[$no_alp]} @the_nos);
-  my @sel_nos=grep {my $adj_this_alp=${$the_merged}[$_]->[$no_alp];$adj_this_alp = 1 if $adj_this_alp > 1;!(($max_iden - ${$the_merged}[$_]->[$no_ai] >= $max_iden_gap) && ($adj_this_alp <= $min_alp))} @the_nos;
+  #my $min_alp=min(map {${$the_merged}[$_]->[$no_alp]} @the_nos);
+  my @sel_nos=grep {my $this_irlen=${$the_merged}[$_]->[$no_Qe]-${$the_merged}[$_]->[$no_Qs] + 1;($max_iden - ${$the_merged}[$_]->[$no_ai] < $max_iden_gap) || ($this_irlen > $max_irlen)} @the_nos;
 
   @sel_nos=($max_ino) if @sel_nos == 0;#如果全被移除，则保留最佳结果：暂时认定为identity最高的为最佳结果。
 

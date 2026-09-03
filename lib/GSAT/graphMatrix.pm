@@ -1,6 +1,8 @@
 #!perl
 #Generated at Dec 23, 2025
 #updated at Jan 03, 2026
+#updated at Jul 16, 2026
+#updated at Jul 21, 2026
 
 package graphMatrix;
 
@@ -17,30 +19,37 @@ use GSAT::graphIO;
 
 my @o_x=(['+','+'],['+','-'],['-','+'],['-','-']);
 my %ori_r=('+','-','-','+');
+my $minEdgeRatio=0.5;#如果是针对core-segment，应启用该设置
+my %ctg_info;
 
 sub map2matrix{
   my ($pathFile,$gfa)=@_;
   my %ctg_path;
   my @map_lk;
   my %matrix;
-  open(pFILE,"$pathFile") || die $!;
-  my $head=<pFILE>;
-  foreach my $line(<pFILE>){
-    chomp($line);
-    my ($ctg,undef,undef,undef,$path)=split(/\t/,$line,6);
-    my @t_paths=map {die "Error: Alternative path is not allowed!\n" if /\{/;s/[\(\[][^\)\]]+[\)\]]//g;$_} (split(/,/,$path));
-    $ctg_path{$ctg}=[@t_paths];
-
-    my @rc_lks=map {my $n1=$t_paths[$_];my $o1=substr($n1,-1,1,'');my $n2=$t_paths[$_+1];my $o2=substr($n2,-1,1,'');[$n1,$o1,$n2,$o2,0]} 0..$#t_paths-1 if @t_paths > 1;
-    push @map_lk,@rc_lks;
-  }
-  close pFILE;
-
+  
   open(gFile,"$gfa") || die $!;
   chomp(my @gfa_content=<gFile>);
   close gFile;
   my ($gfa_S,undef,$gfa_L)=graphIO::readGfa(\@gfa_content,'SL');
   my %t1_lk=graphIO::nodeNeighbors($gfa_L);
+
+  open(pFILE,"$pathFile") || die $!;
+  my $head=<pFILE>;
+  foreach my $line(<pFILE>){
+    chomp($line);
+    my ($ctg,undef,undef,undef,$path,$align1,$align2)=split(/\t/,$line);
+    my @t_paths=map {die "Error: Alternative path is not allowed!\n" if /\{/;s/[\(\[][^\)\]]+[\)\]]//g;my $n=$_;my $o=substr($n,-1,1,'');[$n,$o]} (split(/,/,$path));
+    my ($a1_s,$a1_e)=split(/\-/,$align1);
+    shift @t_paths if ($a1_e - $a1_s) / $ctg_info{$t_paths[0]->[0]} < $minEdgeRatio;
+    my ($a2_s,$a2_e)=split(/\-/,$align2);
+    pop @t_paths if @t_paths > 0 && ($a2_e - $a2_s) / $ctg_info{$t_paths[-1]->[0]} < $minEdgeRatio;
+    $ctg_path{$ctg}= [map{$_->[0].$_->[1]} @t_paths];
+
+    my @rc_lks=map {[@{$t_paths[$_]},@{$t_paths[$_ + 1]},0]} 0..$#t_paths-1 if @t_paths > 1;
+    push @map_lk,@rc_lks;
+  }
+  close pFILE;
 
   #检查被漏掉的ctg，并重构link矩阵
   my @lost=grep {not exists $ctg_path{$_}} (keys %{$gfa_S});
@@ -138,9 +147,20 @@ sub map2matrix{
 
 sub cmpMatrix{
   my ($fileList,$ctgList,$outp)=@_;
+
+  open(cList,"$ctgList") || die $!;
+  foreach (<cList>){
+    chomp;
+    my ($n,$l)=split(/\s+/);
+    die "Error: The contigList file should contain two colums: contig_name and contig_length. \n" if not defined($l);
+    $ctg_info{$n}=$l;
+  }
+  close cList;
+
   open(fList,"$fileList") || die $!;
   my @snames;
   my @smatrixs;
+
   foreach my $fPair(<fList>){
     chomp($fPair);
     my ($nn,$pfile,$gfile)=split(/\s+/,$fPair);
@@ -151,9 +171,7 @@ sub cmpMatrix{
   }
   close fList;
 
-  open(cList,"$ctgList") || die $!;
-  chomp(my @ctgs=sort <cList>);
-  close cList;
+  my @ctgs=sort keys %ctg_info;
 
   #my @wholeM_name=@snames;
   my @wholeM_loci;
@@ -187,11 +205,21 @@ sub cmpMatrix{
   }
 
   open(outFile,">${outp}.diff.matrix");
+  open(alterFile,">${outp}.common.links");
   print outFile join("\t",('Link',@snames))."\n";
-  foreach my $lnn(0..$#wholeM_loci){
-    print outFile join("\t",($wholeM_loci[$lnn],@{$wholeM_value[$lnn]}))."\n" if $m_sum[$lnn] != 0 && $m_sum[$lnn] != @snames;
+  foreach my $lnn(0..$#wholeM_loci){ 
+    if($m_sum[$lnn] == @snames){
+      print alterFile $wholeM_loci[$lnn]."\n";
+    }
+    elsif($m_sum[$lnn] != 0){
+      print outFile join("\t",($wholeM_loci[$lnn],@{$wholeM_value[$lnn]}))."\n";
+    }    
+    else{
+      ;
+    }
   }
   close outFile;
+  close alterFile;
 }
 
 1;

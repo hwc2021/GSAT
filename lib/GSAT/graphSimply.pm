@@ -50,7 +50,7 @@ my @bandage;
 my $out_pre;
 
 my $path_num4add=20;#新增path的最小连接数
-my $pathCorr;#对path进行矫正
+my $pathCorr='off';#对path进行矫正
 
 my %seqn_uniq;
 my $rm_fake=0;
@@ -159,7 +159,7 @@ sub find_neighbors{
 
 sub filterGraph{
   ($infile1,$infile2,$min_path_no,$min_end_length,$out_pre,$path_num4add,$pathCorr,$rm_fake,$file3,$dep_range)=@_;
-   $pathCorr = 'off' if not defined  $pathCorr;
+  $pathCorr = 'off' if not defined  $pathCorr;
 
   open (infile1,$infile1) || die "Cannot open the file: $infile1\n";
   open (infile2,$infile2) || die "Cannot open the file: $infile2\n";
@@ -225,10 +225,12 @@ sub filterGraph{
 
   #增加对错误连接的处理能力
   #筛选低支持度连接，列入删除名单（上步已完成）；统计低支持度连接两侧contig端点与其他所有contig端点之间的连接数，对通过阈值的连接例如增加列表，暂时以10个N隔开。
+  #注意：该功能最好能够结合pathMerge模块（等待开发）一起使用，避免类似拟南芥那种长污染片段引入错误连接。
   #1-生成待分析links,同时避免对lk-node两侧的links进行额外连接-这类短序列错误应该交给gCorr去解决
   #遍历所有可能的link组合，同时记录lk-node侧翼的links
   my @links_test;
   my @lk_links;
+  warn "corrPath: [$pathCorr] \n";#test;
   foreach my $t_no(0..$#seq_name){
     my $t_node=$seq_name[$t_no];
     if($pathCorr eq 'all'){
@@ -248,15 +250,15 @@ sub filterGraph{
         push @links_test,join("\t",('L',$t_node,'-',@{$t_link}[2..3]));
       }
     }
-    elsif($pathCorr eq 'off'){
-      ;
+    elsif($pathCorr ne 'off'){
+      die "Error: Wrong params for corrPath option: ONLY all/low/off allowed.";
     }
     else{
-      die "Error: Wrong params for corrPath option: ONLY all/low/off allowed.";
+      ;
     }
 
     #记录lk-node侧翼的links
-    next if ($t_node !~ /^add_node_/) || ($seq_length[$t_no] > 2 * $olen + 20);
+    next if ($t_node !~ /^add_node_/) || ($seq_length[$t_no] > 2 * $olen+20);
     my @l_hits=grep {/\t${t_node}\t/} @links;
     my ($bn,$bo,$an,$ao)=find_neighbors(\@l_hits,$t_node);
     foreach my $il(0..$#{$bn}){

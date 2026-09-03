@@ -9,8 +9,9 @@
 #updated at 20250407: fix a small bug.
 #updated at 20250731: try to reduce the memory usage.
 #updated at 20250905: improve the alignment of nctgs.
-#updated at 20260115: Adjust the criteria for correcting the old ONT reads
-#注意skipHPM选项尚未在菜单中启用
+#updated at 20260115: Adjust the criteria for correcting the old ONT reads.
+#updated at 20260622: fix a small bug for skipHPM function.
+#注意skipHPM选项尚未在菜单中更新
 
 package graphCorrector;
 
@@ -40,7 +41,7 @@ my $outp_name;
 my $true_ratio=0.9;
 my $threads=8;
 my $minPath=10;
-my $hp_stat=0;
+my $hp_stat=1;
 
 sub phaseOpt{
   GetOptionsFromArray($_[0],
@@ -49,7 +50,7 @@ sub phaseOpt{
         'pathFile=s'     => \$path_file,
         'out=s'          => \$out_prefix,
         'minReadProp=f'  => \$true_ratio,
-        'skipHPM=s'      => \$hp_stat,  #for ONT reads   
+        'skipHPM=s'      => \$hp_stat,     
   );
 
   $outp_name=basename($out_prefix);
@@ -133,6 +134,10 @@ sub call_var{
       );
       print $temp_fh ">ctg\n$c_seq\n>read\n$r_seq\n";
       close $temp_fh;
+  
+      #open temp_fas,">${out_prefix}.temp.fas";
+      #print temp_fas ">ctg\n".$c_seq."\n>read\n".$r_seq."\n";
+      #close temp_fas;
   
       my $mafft_command="mafft --maxiterate 1000 --globalpair --quiet $temp_fn";
       my @mafft_seq=`$mafft_command`;
@@ -284,8 +289,31 @@ sub grapCorr{
   my @all_paths = (0..$#path_Rid);
   my $chunk_size = int(@all_paths/$threads) + 1;
   my @index_chunks;
+  #my @chunks_prid;
+  #my @chunks_prseq;
+  #my @chunks_mcn;
+  #my @chunks_mrali;
+  #my @chunks_mcali;
+  #my @chunks_mori;
+  #my @chunks_ctgv;
+  #my @chunks_ctgd;
+  #my @chunks_nctgs;
+  #my @chunks_nrseqs;
+  #my @chunks;
   while (@all_paths) {
     push @index_chunks, [splice @all_paths, 0, $chunk_size];
+    #push @chunks, [splice @all_paths, 0, $chunk_size];
+    #push @chunks_prid, [splice @path_Rid, 0, $chunk_size];
+    #my @t_rseq=map {$path_Rseq{$_}} @{$chunks_prid[-1]};
+    #push @chunks_prseq, [@t_rseq];
+    #push @chunks_mcn, [splice @mapped_ctg, 0, $chunk_size];
+    #push @chunks_mrali, [splice @mapped_Rali, 0, $chunk_size];
+    #push @chunks_mcali, [splice @mapped_Cali, 0, $chunk_size];
+    #push @chunks_mori, [splice @mapped_ori, 0, $chunk_size];
+    #push @chunks_ctgv,{};
+    #push @chunks_ctgd,{};
+    #push @chunks_nctgs,{};
+    #push @chunks_nrseqs,{};
   }
 
   # Parallel processing
@@ -485,11 +513,11 @@ sub grapCorr{
         my $alt_ss = $alt_type[$true_no[0]];
         if($hp_stat > 0 && exists $hp{$loc0} && ($alt_ss eq '-' || $alt_ss =~ /^[$ref0]+$/)){
           $stat = 'skipped';
-          $corr_seq .= $alt_ss;
+          $corr_seq .= $ref0;
         }
         else{
           $stat = 'corrected';
-          $corr_seq .= $alt_type[$true_no[0]];
+          $corr_seq .= $alt_ss;
         }
       }
       elsif($var_sum == 0){
