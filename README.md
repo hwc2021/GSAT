@@ -84,7 +84,7 @@ All pipeline commands can be easily applied with a specified configure file, whi
 
 This will generate a raw graph of de novo genome assembly based on Illumina paired-end reads, and then produce a Organelle Graph (OG). The OG will be saved as `og.filtered.gfa` in the output dir. Please note that the params for graphShort should be adjusted for different species, and the resulted OG should be checked and edited in [Bandage](https://github.com/rrwick/Bandage) before it can be used for the next pipeline. We now provide a tool to remove the non-organelle sequences by mapping a mitogenome reference to the OG:
 
-        perl ../scripts/anchor_subgraph.pl -g og.filtered.gfa -r reference_mt.fasta -o og.filtered.clean.gfa
+        perl $GSAT_root_path/scripts/anchor_subgraph.pl -g og.filtered.gfa -r reference_mt.fasta -o og.filtered.clean.gfa
 
 - graphLong
 
