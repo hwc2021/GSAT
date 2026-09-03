@@ -106,7 +106,9 @@ This will generate a Mitochondrial Rough Master Graph (MRMG) from a MRG. The MRM
 
         gsat graphCorrection -conf example.conf
 
-This will generate a Mitochondrial Master Graph (MMG) from a MRMG. The MMG will be saved as `mmg.corrCtg.gfa` in the output dir.
+This will generate a Mitochondrial Master Graph (MMG) from a MRMG. The MMG will be saved as `mmg.corrCtg.gfa` in the output dir. A final merging step is recommended for the resulting graph:
+
+        gsat graphMerge -g mmg.corrCtg.gfa -o mmg.corrCtg
 
 ## Version
 
