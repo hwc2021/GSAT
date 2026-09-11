@@ -92,7 +92,7 @@ This will generate a raw graph of de novo genome assembly based on Illumina pair
 
 This will generate a Mitochondrial Rough Graph (MRG) from a OG based on graph-mapping between OG and long reads. The MRG will be saved as `mrg.filtered.gfa` in the output dir.
 
-- It is recommended to conduct a merging operation after each graphLong pipeline.
+It is recommended to conduct a merging operation after each graphLong pipeline.
 
         gsat graphMerge -g mrg.filtered.gfa -o mrg.filtered
 
