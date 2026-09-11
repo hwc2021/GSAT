@@ -1,7 +1,7 @@
 
 # Test Dataset Description
 
-This directory contains a test dataset for the complete mitochondrial genome assembly pipeline of rice sample **NH002**.
+This directory contains a test dataset for the complete mitochondrial genome assembly pipeline of rice sample **NH012**.
 
 ## File Structure
 
